@@ -49,3 +49,6 @@ app.*.map.json
 
 # Notas locales
 mensaje_commit.txt
+
+# Configuración de Supabase (ver env.example.json)
+env.json
