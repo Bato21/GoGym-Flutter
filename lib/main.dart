@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth/auth_gate.dart';
 import 'config/env.dart';
+import 'data/datos_repositorio.dart';
+import 'providers/entrenamientos_provider.dart';
+import 'providers/navegacion_provider.dart';
+import 'providers/perfil_provider.dart';
+import 'providers/rutinas_provider.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('es');
 
   if (!Env.configurado) {
     runApp(const _ConfiguracionFaltante());
@@ -17,24 +25,39 @@ Future<void> main() async {
     url: Env.supabaseUrl,
     publishableKey: Env.supabasePublishableKey,
   );
-  runApp(GoGymApp(home: AuthGate(auth: Supabase.instance.client.auth)));
+  final cliente = Supabase.instance.client;
+  runApp(GoGymApp(
+    repositorio: SupabaseDatosRepositorio(cliente),
+    home: AuthGate(auth: cliente.auth),
+  ));
 }
 
+/// Registra los providers compartidos sobre toda la app.
 class GoGymApp extends StatelessWidget {
-  const GoGymApp({super.key, required this.home});
+  const GoGymApp({super.key, required this.repositorio, required this.home});
 
+  final DatosRepositorio repositorio;
   final Widget home;
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Go Gym',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.claro,
-      darkTheme: AppTheme.oscuro,
-      // Igual que dark.system.css en Ionic: sigue el tema del sistema.
-      themeMode: ThemeMode.system,
-      home: home,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => PerfilProvider(repositorio)),
+        ChangeNotifierProvider(create: (_) => RutinasProvider(repositorio)),
+        ChangeNotifierProvider(
+            create: (_) => EntrenamientosProvider(repositorio)),
+        ChangeNotifierProvider(create: (_) => NavegacionProvider()),
+      ],
+      child: MaterialApp(
+        title: 'Go Gym',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.claro,
+        darkTheme: AppTheme.oscuro,
+        // Igual que dark.system.css en Ionic: sigue el tema del sistema.
+        themeMode: ThemeMode.system,
+        home: home,
+      ),
     );
   }
 }

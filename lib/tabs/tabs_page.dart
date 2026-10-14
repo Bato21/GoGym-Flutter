@@ -1,23 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../calorias/calorias_page.dart';
 import '../entrenamiento/entrenamiento_page.dart';
 import '../inicio/inicio_page.dart';
 import '../logros/logros_page.dart';
 import '../perfil/perfil_page.dart';
+import '../providers/navegacion_provider.dart';
 import '../rutina/rutina_page.dart';
 
 /// Barra de pestañas inferior. Equivalente a `src/app/tabs` en Ionic.
-class TabsPage extends StatefulWidget {
+/// La pestaña activa vive en [NavegacionProvider], así una vista puede abrir otra.
+class TabsPage extends StatelessWidget {
   const TabsPage({super.key});
 
-  @override
-  State<TabsPage> createState() => _TabsPageState();
-}
-
-class _TabsPageState extends State<TabsPage> {
-  int _indice = 0;
-
+  // Mismo orden que [Pestana].
   static const _paginas = <Widget>[
     InicioPage(),
     EntrenamientoPage(),
@@ -29,13 +26,15 @@ class _TabsPageState extends State<TabsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final navegacion = context.watch<NavegacionProvider>();
+    final indice = navegacion.actual.index;
     return Scaffold(
       // IndexedStack mantiene el estado de cada pestaña al cambiar,
       // igual que ion-tabs.
-      body: IndexedStack(index: _indice, children: _paginas),
+      body: IndexedStack(index: indice, children: _paginas),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _indice,
-        onTap: (i) => setState(() => _indice = i),
+        currentIndex: indice,
+        onTap: (i) => navegacion.irA(Pestana.values[i]),
         type: BottomNavigationBarType.fixed,
         selectedFontSize: 11,
         unselectedFontSize: 11,

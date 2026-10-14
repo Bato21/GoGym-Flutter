@@ -10,6 +10,7 @@ class AppTheme {
   // Fondos oscuros del mockup.
   static const Color fondoOscuro = Color(0xFF0B1220);
   static const Color tarjetaOscura = Color(0xFF121A2B);
+  static const Color bordeOscuro = Color(0xFF223049);
 
   static ThemeData get claro => ThemeData(
         useMaterial3: true,
@@ -25,7 +26,11 @@ class AppTheme {
       seedColor: primario,
       primary: primario,
       brightness: Brightness.dark,
-    ).copyWith(surface: fondoOscuro, surfaceContainer: tarjetaOscura);
+    ).copyWith(
+      surface: fondoOscuro,
+      surfaceContainer: tarjetaOscura,
+      outlineVariant: bordeOscuro,
+    );
 
     return ThemeData(
       useMaterial3: true,
