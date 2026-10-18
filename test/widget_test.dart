@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_gym/data/datos_repositorio.dart';
 import 'package:go_gym/inicio/inicio_page.dart';
 import 'package:go_gym/models/perfil.dart';
 import 'package:go_gym/models/rutina.dart';
@@ -100,6 +101,7 @@ Future<NavegacionProvider> montar(
 
   await tester.pumpWidget(MultiProvider(
     providers: [
+      Provider<DatosRepositorio>.value(value: repositorio),
       ChangeNotifierProvider.value(value: perfil),
       ChangeNotifierProvider.value(value: rutinas),
       ChangeNotifierProvider.value(value: entrenamientos),
