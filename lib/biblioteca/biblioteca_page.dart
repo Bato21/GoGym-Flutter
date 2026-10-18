@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../data/datos_repositorio.dart';
 import '../models/ejercicio_catalogo.dart';
 import 'ejercicio_detalle_page.dart';
+import '../widgets/ejercicio_card.dart';
 
 /// Catálogo de ejercicios traído desde Supabase.
 class BibliotecaPage extends StatefulWidget {
@@ -63,37 +64,13 @@ class _BibliotecaPageState extends State<BibliotecaPage> {
                 itemCount: ejercicios.length,
                 itemBuilder: (context, index) {
                   final ejercicio = ejercicios[index];
-
-                  // Imagen de RepDB si existe; si no hay o no carga, un ícono.
-                  // Tamaño fijo para que la fila no salte al cargar la imagen.
-                  return ListTile(
+                  return EjercicioCard(
+                    ejercicio: ejercicio,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) =>
                             EjercicioDetallePage(ejercicio: ejercicio),
                       ),
-                    ),
-                    leading: Hero(
-                      tag: 'imagen-${ejercicio.id}',
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: SizedBox(
-                          width: 56,
-                          height: 56,
-                          child: ejercicio.urlImagen == null
-                              ? const Icon(Icons.fitness_center)
-                              : Image.network(
-                                  ejercicio.urlImagen!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stack) =>
-                                      const Icon(Icons.fitness_center),
-                                ),
-                        ),
-                      ),
-                    ),
-                    title: Text(ejercicio.nombre),
-                    subtitle: Text(
-                      '${ejercicio.equipo} · ${ejercicio.musculos.join(', ')}',
                     ),
                   );
                 },
