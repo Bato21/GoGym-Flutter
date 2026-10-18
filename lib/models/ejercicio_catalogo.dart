@@ -21,6 +21,12 @@ class EjercicioCatalogo {
   final List<String> musculos;
 
   final String? imagen;
+  /// Imagenes de RepDB por jsDelivr, fijadas a un commit para que no cambien
+  static const _baseImage = 
+    'https://cdn.jsdelivr.net/gh/RepDB/exercise-dataset@6d88fc6f3a398845f7f2c17f3a5f45cfc4effa2f/images/flat/';
+
+  /// URL completa de la imagen, o null si el ejercicio no tiene
+  String? get urlImagen => imagen == null ? null : '$_baseImage$imagen';
 
   factory EjercicioCatalogo.fromFila(Map<String, dynamic> fila) =>
       EjercicioCatalogo(
@@ -34,3 +40,16 @@ class EjercicioCatalogo {
         imagen: fila['imagen'] as String?,
       );
 }
+
+/// Orden en que se muestran los filtros. Coincide con el check de la tabla.
+const gruposMusculares = [
+  'Pecho',
+  'Espalda',
+  'Hombro',
+  'Bíceps',
+  'Tríceps',
+  'Pierna',
+  'Core',
+  'Antebrazo',
+  'Cuerpo completo',
+];
