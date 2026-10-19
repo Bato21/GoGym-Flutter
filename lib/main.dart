@@ -43,6 +43,7 @@ class GoGymApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        Provider<DatosRepositorio>.value(value: repositorio),
         ChangeNotifierProvider(create: (_) => PerfilProvider(repositorio)),
         ChangeNotifierProvider(create: (_) => RutinasProvider(repositorio)),
         ChangeNotifierProvider(

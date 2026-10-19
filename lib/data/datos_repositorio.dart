@@ -3,12 +3,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/perfil.dart';
 import '../models/rutina.dart';
 import '../models/sesion.dart';
+import '../models/ejercicio_catalogo.dart';
 
 /// Acceso a los datos de la cuenta. Los providers dependen de esta interfaz y no
 /// de Supabase, así las pruebas usan un repositorio falso.
 abstract class DatosRepositorio {
   /// null si la cuenta todavía no tiene perfil.
   Future<Perfil?> perfil(String usuarioId);
+
+  /// catalogo de ejercicios, para mostrar en la pantalla de búsqueda y en la rutina.
+  Future<List<EjercicioCatalogo>> catalogoEjercicios();
 
   /// Crea el perfil de una cuenta nueva; el resto de columnas usa los valores
   /// por defecto de la tabla.
@@ -70,5 +74,11 @@ class SupabaseDatosRepositorio implements DatosRepositorio {
         .eq('user_id', usuarioId)
         .order('inicio', ascending: false);
     return filas.map(Sesion.fromFila).toList();
+  }
+
+  @override
+  Future<List<EjercicioCatalogo>> catalogoEjercicios() async {
+    final filas = await _db.from('ejercicios').select().order('nombre');
+    return filas.map(EjercicioCatalogo.fromFila).toList();
   }
 }

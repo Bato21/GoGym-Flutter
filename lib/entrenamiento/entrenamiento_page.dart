@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../widgets/pagina_en_construccion.dart';
+import '../biblioteca/biblioteca_page.dart';
 
 class EntrenamientoPage extends StatelessWidget {
   const EntrenamientoPage({super.key});
@@ -9,7 +9,7 @@ class EntrenamientoPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Entrenamiento')),
-      body: const PaginaEnConstruccion(nombre: 'Entrenamiento'),
+      body: const BibliotecaPage(),
     );
   }
 }
