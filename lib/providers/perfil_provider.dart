@@ -33,6 +33,13 @@ class PerfilProvider extends ChangeNotifier {
     if (id != null) await cargar(id);
   }
 
+  Future<void> actualizar(Perfil perfil) async {
+    final id = _usuarioId;
+    if (id == null) throw StateError('No hay una cuenta cargada.');
+    _perfil = await _repositorio.actualizarPerfil(id, perfil);
+    notifyListeners();
+  }
+
   void limpiar() {
     _usuarioId = null;
     _perfil = null;
