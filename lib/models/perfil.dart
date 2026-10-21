@@ -28,6 +28,42 @@ class Perfil {
   final String horaEntrenamiento;
   final int metaCalorias;
 
+  Perfil copyWith({
+    String? nombre,
+    String? apellido,
+    String? objetivo,
+    int? rutinaFavoritaId,
+    bool quitarRutinaFavorita = false,
+    double? pesoKg,
+    List<int>? diasEntrenamiento,
+    String? horaEntrenamiento,
+    int? metaCalorias,
+  }) =>
+      Perfil(
+        nombre: nombre ?? this.nombre,
+        apellido: apellido ?? this.apellido,
+        objetivo: objetivo ?? this.objetivo,
+        rutinaFavoritaId: quitarRutinaFavorita
+            ? null
+            : rutinaFavoritaId ?? this.rutinaFavoritaId,
+        pesoKg: pesoKg ?? this.pesoKg,
+        diasEntrenamiento: diasEntrenamiento ?? this.diasEntrenamiento,
+        horaEntrenamiento: horaEntrenamiento ?? this.horaEntrenamiento,
+        metaCalorias: metaCalorias ?? this.metaCalorias,
+      );
+
+  /// Columnas editables de la fila `perfiles`.
+  Map<String, dynamic> toUpdate() => {
+        'nombre': nombre,
+        'apellido': apellido,
+        'objetivo': objetivo,
+        'rutina_favorita_id': rutinaFavoritaId,
+        'peso_kg': pesoKg,
+        'dias_entrenamiento': diasEntrenamiento,
+        'hora_entrenamiento': horaEntrenamiento,
+        'meta_calorias': metaCalorias,
+      };
+
   factory Perfil.fromFila(Map<String, dynamic> fila) => Perfil(
         nombre: fila['nombre'] as String? ?? '',
         apellido: fila['apellido'] as String? ?? '',

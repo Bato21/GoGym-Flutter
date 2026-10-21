@@ -37,6 +37,10 @@ class RepositorioFalso implements DatosRepositorio {
   );
 
   @override
+  Future<Perfil> actualizarPerfil(String usuarioId, Perfil perfil) async =>
+      perfilGuardado = perfil;
+
+  @override
   Future<List<Rutina>> rutinas(String usuarioId) async => rutinasGuardadas;
 
   @override

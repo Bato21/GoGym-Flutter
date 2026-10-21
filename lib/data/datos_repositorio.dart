@@ -22,6 +22,9 @@ abstract class DatosRepositorio {
     required String apellido,
   });
 
+  /// Guarda los datos editables del perfil y devuelve la fila actualizada.
+  Future<Perfil> actualizarPerfil(String usuarioId, Perfil perfil);
+
   /// Rutinas en orden de creación.
   Future<List<Rutina>> rutinas(String usuarioId);
 
@@ -54,6 +57,17 @@ class SupabaseDatosRepositorio implements DatosRepositorio {
     final fila = await _db
         .from('perfiles')
         .upsert({'id': usuarioId, 'nombre': nombre, 'apellido': apellido})
+        .select()
+        .single();
+    return Perfil.fromFila(fila);
+  }
+
+  @override
+  Future<Perfil> actualizarPerfil(String usuarioId, Perfil perfil) async {
+    final fila = await _db
+        .from('perfiles')
+        .update(perfil.toUpdate())
+        .eq('id', usuarioId)
         .select()
         .single();
     return Perfil.fromFila(fila);

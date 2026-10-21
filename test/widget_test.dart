@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_gym/data/datos_repositorio.dart';
 import 'package:go_gym/inicio/inicio_page.dart';
+import 'package:go_gym/logros/logros_page.dart';
 import 'package:go_gym/models/perfil.dart';
 import 'package:go_gym/models/rutina.dart';
 import 'package:go_gym/models/sesion.dart';
@@ -9,6 +10,7 @@ import 'package:go_gym/providers/entrenamientos_provider.dart';
 import 'package:go_gym/providers/navegacion_provider.dart';
 import 'package:go_gym/providers/perfil_provider.dart';
 import 'package:go_gym/providers/rutinas_provider.dart';
+import 'package:go_gym/perfil/perfil_page.dart';
 import 'package:go_gym/tabs/tabs_page.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
@@ -19,65 +21,75 @@ import 'repositorio_falso.dart';
 final hoy = DateTime(2026, 10, 14, 18);
 
 RepositorioFalso repositorioConDatos() => RepositorioFalso(
-      perfilGuardado: const Perfil(
-        nombre: 'Vicente',
-        apellido: 'Rodríguez',
-        objetivo: '',
-        pesoKg: 80,
-        diasEntrenamiento: [0, 2, 4],
-        horaEntrenamiento: '18:00',
-        metaCalorias: 2200,
-      ),
-      rutinasGuardadas: [
-        Rutina(
-          id: 1,
-          nombre: 'Push A',
-          categoria: 'Fuerza',
-          nivel: 'Intermedio',
-          minutos: 55,
-          ejercicios: [
-            ejercicio(11, 'Pecho'),
-            ejercicio(12, 'Pecho'),
-            ejercicio(13, 'Hombro'),
-          ],
-        ),
-        Rutina(
-          id: 2,
-          nombre: 'Pull B',
-          categoria: 'Fuerza',
-          nivel: '',
-          minutos: 50,
-          ejercicios: [ejercicio(21, 'Espalda')],
-        ),
-        Rutina(
-          id: 3,
-          nombre: 'Legs A',
-          categoria: 'Fuerza',
-          nivel: '',
-          minutos: 60,
-          ejercicios: [ejercicio(31, 'Pierna')],
-        ),
+  perfilGuardado: const Perfil(
+    nombre: 'Vicente',
+    apellido: 'Rodríguez',
+    objetivo: '',
+    pesoKg: 80,
+    diasEntrenamiento: [0, 2, 4],
+    horaEntrenamiento: '18:00',
+    metaCalorias: 2200,
+  ),
+  rutinasGuardadas: [
+    Rutina(
+      id: 1,
+      nombre: 'Push A',
+      categoria: 'Fuerza',
+      nivel: 'Intermedio',
+      minutos: 55,
+      ejercicios: [
+        ejercicio(11, 'Pecho'),
+        ejercicio(12, 'Pecho'),
+        ejercicio(13, 'Hombro'),
       ],
-      sesionesGuardadas: [
-        // Semana pasada: 4 días seguidos (récord).
-        for (var d = 1; d <= 4; d++)
-          sesion('Push A', DateTime(2026, 10, d, 9), 50, rutinaId: 1),
-        sesion('Pull B', DateTime(2026, 10, 11, 9), 52, rutinaId: 2),
-        sesion('Cinta', DateTime(2026, 10, 12, 19), 28, ejercicios: [
-          ejercicioSesion('Cardio', const [Serie(reps: 1)], met: 7),
+    ),
+    Rutina(
+      id: 2,
+      nombre: 'Pull B',
+      categoria: 'Fuerza',
+      nivel: '',
+      minutos: 50,
+      ejercicios: [ejercicio(21, 'Espalda')],
+    ),
+    Rutina(
+      id: 3,
+      nombre: 'Legs A',
+      categoria: 'Fuerza',
+      nivel: '',
+      minutos: 60,
+      ejercicios: [ejercicio(31, 'Pierna')],
+    ),
+  ],
+  sesionesGuardadas: [
+    // Semana pasada: 4 días seguidos (récord).
+    for (var d = 1; d <= 4; d++)
+      sesion('Push A', DateTime(2026, 10, d, 9), 50, rutinaId: 1),
+    sesion('Pull B', DateTime(2026, 10, 11, 9), 52, rutinaId: 2),
+    sesion(
+      'Cinta',
+      DateTime(2026, 10, 12, 19),
+      28,
+      ejercicios: [
+        ejercicioSesion('Cardio', const [Serie(reps: 1)], met: 7),
+      ],
+    ),
+    sesion(
+      'Legs A',
+      DateTime(2026, 10, 13, 10),
+      61,
+      rutinaId: 3,
+      ejercicios: [
+        ejercicioSesion('Pierna', const [
+          Serie(kg: 80, reps: 5),
+          Serie(kg: 80, reps: 5),
+          Serie(kg: 80, reps: 5),
+          Serie(kg: 60, reps: 10),
+          Serie(kg: 60, reps: 10),
         ]),
-        sesion('Legs A', DateTime(2026, 10, 13, 10), 61, rutinaId: 3,
-            ejercicios: [
-              ejercicioSesion('Pierna', const [
-                Serie(kg: 80, reps: 5),
-                Serie(kg: 80, reps: 5),
-                Serie(kg: 80, reps: 5),
-                Serie(kg: 60, reps: 10),
-                Serie(kg: 60, reps: 10),
-              ]),
-            ]),
       ],
-    );
+    ),
+  ],
+);
 
 /// Carga los providers como lo hace AuthGate y monta [hijo] encima.
 Future<NavegacionProvider> montar(
@@ -99,24 +111,27 @@ Future<NavegacionProvider> montar(
     entrenamientos.cargar('u1'),
   ]);
 
-  await tester.pumpWidget(MultiProvider(
-    providers: [
-      Provider<DatosRepositorio>.value(value: repositorio),
-      ChangeNotifierProvider.value(value: perfil),
-      ChangeNotifierProvider.value(value: rutinas),
-      ChangeNotifierProvider.value(value: entrenamientos),
-      ChangeNotifierProvider.value(value: navegacion),
-    ],
-    child: MaterialApp(home: hijo),
-  ));
+  await tester.pumpWidget(
+    MultiProvider(
+      providers: [
+        Provider<DatosRepositorio>.value(value: repositorio),
+        ChangeNotifierProvider.value(value: perfil),
+        ChangeNotifierProvider.value(value: rutinas),
+        ChangeNotifierProvider.value(value: entrenamientos),
+        ChangeNotifierProvider.value(value: navegacion),
+      ],
+      child: MaterialApp(home: hijo),
+    ),
+  );
   return navegacion;
 }
 
 void main() {
   setUpAll(() => initializeDateFormatting('es'));
 
-  testWidgets('Inicio muestra todo calculado desde los datos de la cuenta',
-      (tester) async {
+  testWidgets('Inicio muestra todo calculado desde los datos de la cuenta', (
+    tester,
+  ) async {
     await montar(tester, repositorioConDatos(), InicioPage(ahora: () => hoy));
 
     // Encabezado.
@@ -152,7 +167,10 @@ void main() {
 
   testWidgets('Inicio sin datos muestra estados vacíos', (tester) async {
     final navegacion = await montar(
-        tester, RepositorioFalso(), InicioPage(ahora: () => hoy));
+      tester,
+      RepositorioFalso(),
+      InicioPage(ahora: () => hoy),
+    );
 
     // Cuenta nueva: el perfil se crea con el nombre del registro.
     expect(find.text('Hola, Nuevo'), findsOneWidget);
@@ -167,8 +185,11 @@ void main() {
   });
 
   testWidgets('Los accesos de Inicio cambian de pestaña', (tester) async {
-    final navegacion =
-        await montar(tester, repositorioConDatos(), const TabsPage());
+    final navegacion = await montar(
+      tester,
+      repositorioConDatos(),
+      const TabsPage(),
+    );
 
     await tester.tap(find.text('Empezar'));
     await tester.pumpAndSettle();
@@ -180,5 +201,59 @@ void main() {
     await tester.pumpAndSettle();
     expect(navegacion.actual, Pestana.perfil);
     expect(find.widgetWithText(AppBar, 'Perfil'), findsOneWidget);
+  });
+
+  testWidgets('Logros calcula desbloqueos y avances desde el historial', (
+    tester,
+  ) async {
+    await montar(tester, repositorioConDatos(), LogrosPage(ahora: () => hoy));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 de 6 desbloqueados'), findsOneWidget);
+    expect(
+      find.textContaining('3 días de racha', findRichText: true),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Récord 4', findRichText: true), findsOneWidget);
+    expect(find.text('Primer entrenamiento'), findsOneWidget);
+    expect(find.text('7/10'), findsOneWidget);
+    expect(find.text('2/3'), findsOneWidget);
+
+    await tester.tap(find.text('Constancia'));
+    await tester.pumpAndSettle();
+    expect(find.text('SIGUE AVANZANDO'), findsOneWidget);
+    expect(find.textContaining('Te faltan 3'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('cerrar-logro')));
+    await tester.pumpAndSettle();
+    expect(find.text('SIGUE AVANZANDO'), findsNothing);
+  });
+
+  testWidgets('Perfil muestra agenda y permite guardar cambios', (
+    tester,
+  ) async {
+    final repositorio = repositorioConDatos();
+    await montar(tester, repositorio, PerfilPage(ahora: () => hoy));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Vicente Rodríguez'), findsOneWidget);
+    expect(find.text('Hoy'), findsOneWidget);
+    expect(find.text('Viernes 16'), findsOneWidget);
+    expect(find.text('Lunes 19'), findsOneWidget);
+    expect(find.text('2 de 3'), findsOneWidget);
+
+    await tester.ensureVisible(find.byKey(const Key('editar-perfil')));
+    await tester.tap(find.byKey(const Key('editar-perfil')));
+    await tester.pumpAndSettle();
+    expect(find.text('Editar perfil'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('campo-objetivo')),
+      'Ganar masa muscular',
+    );
+    await tester.tap(find.byKey(const Key('guardar-perfil')));
+    await tester.pumpAndSettle();
+
+    expect(repositorio.perfilGuardado?.objetivo, 'Ganar masa muscular');
+    expect(find.text('Perfil actualizado'), findsOneWidget);
   });
 }
