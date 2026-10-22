@@ -10,14 +10,19 @@ import '../providers/perfil_provider.dart';
 import '../providers/rutinas_provider.dart';
 import '../utils/fechas.dart';
 import '../utils/formato.dart';
+import '../widgets/aparecer.dart';
+import '../widgets/pressable_scale.dart';
 import '../widgets/sesion_card.dart';
 import '../widgets/stat_card.dart';
+import 'widgets/animaciones.dart';
 import 'widgets/racha_card.dart';
 import 'widgets/rutina_hoy_card.dart';
 
 /// Dashboard: racha, totales de la semana, la rutina que toca y las últimas
 /// sesiones. Todo sale de los providers de la cuenta.
-class InicioPage extends StatelessWidget {
+/// Cada vez que se entra a la pestaña, las secciones llegan en cascada y los
+/// números cuentan hasta su valor.
+class InicioPage extends StatefulWidget {
   const InicioPage({super.key, this.ahora = DateTime.now});
 
   /// Reloj inyectable para las pruebas.
@@ -27,87 +32,177 @@ class InicioPage extends StatelessWidget {
   static const cantidadUltimas = 3;
 
   @override
+  State<InicioPage> createState() => _InicioPageState();
+}
+
+class _InicioPageState extends State<InicioPage> {
+  /// Sube al volver a la pestaña: las secciones llevan una key con este
+  /// número, así se reconstruyen y sus animaciones se repiten.
+  int _visita = 0;
+  Pestana? _pestanaAnterior;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final actual = context.watch<NavegacionProvider>().actual;
+    if (actual == Pestana.inicio && _pestanaAnterior != Pestana.inicio) {
+      _visita++;
+    }
+    _pestanaAnterior = actual;
+  }
+
+  /// Sección número [indice] de la cascada.
+  Widget _seccion(
+    int indice,
+    Widget hijo, {
+    Offset desde = const Offset(0, 24),
+  }) => Aparecer(
+    key: ValueKey('seccion-$indice-$_visita'),
+    indice: indice,
+    desde: desde,
+    child: hijo,
+  );
+
+  @override
   Widget build(BuildContext context) {
     final perfil = context.watch<PerfilProvider>().perfil;
     final rutinas = context.watch<RutinasProvider>();
     final entrenamientos = context.watch<EntrenamientosProvider>();
     final navegacion = context.read<NavegacionProvider>();
-    final hoy = ahora();
+    final hoy = widget.ahora();
 
     final semana = entrenamientos.deLaSemana(hoy);
     final volumenSemana = semana.fold(0.0, (suma, s) => suma + s.volumen);
-    final tiempoSemana =
-        semana.fold(Duration.zero, (suma, s) => suma + s.duracion);
-    final ultimas = entrenamientos.ultimas(cantidadUltimas);
+    final tiempoSemana = semana.fold(
+      Duration.zero,
+      (suma, s) => suma + s.duracion,
+    );
+    final ultimas = entrenamientos.ultimas(InicioPage.cantidadUltimas);
 
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () => _recargar(context),
           child: ListView(
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: [
-              _Encabezado(
-                fecha: fechaLarga(hoy),
-                nombre: perfil?.nombre ?? '',
-                iniciales: perfil?.iniciales ?? '',
-                onAvatar: () => navegacion.irA(Pestana.perfil),
+              _seccion(
+                0,
+                desde: const Offset(-24, 0),
+                _Encabezado(
+                  fecha: fechaLarga(hoy),
+                  nombre: perfil?.nombre ?? '',
+                  iniciales: perfil?.iniciales ?? '',
+                  onAvatar: () => navegacion.irA(Pestana.perfil),
+                ),
               ),
               const SizedBox(height: 16),
-              RachaCard(
-                actual: entrenamientos.rachaActual(hoy),
-                record: entrenamientos.rachaRecord,
-                dias: _estadosSemana(entrenamientos.diasDeLaSemana(hoy), hoy),
-              ),
-              const SizedBox(height: 10),
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: StatCard(
-                          valor: '${semana.length}', etiqueta: 'Sesiones'),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: StatCard(
-                        valor: formatearMiles(volumenSemana),
-                        unidad: 'kg',
-                        etiqueta: 'Volumen',
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: StatCard(
-                        valor: formatearTiempo(tiempoSemana),
-                        etiqueta: 'Tiempo',
-                      ),
-                    ),
-                  ],
+              _seccion(
+                1,
+                RachaCard(
+                  actual: entrenamientos.rachaActual(hoy),
+                  record: entrenamientos.rachaRecord,
+                  dias: _estadosSemana(entrenamientos.diasDeLaSemana(hoy), hoy),
                 ),
               ),
               const SizedBox(height: 10),
-              _rutinaHoy(
-                rutina: rutinas.siguiente(entrenamientos.historial),
-                perfil: perfil,
-                entrenoHoy: entrenamientos.entrenoEl(hoy),
-                hoy: hoy,
-                navegacion: navegacion,
+              _seccion(
+                2,
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: NumeroAnimado(
+                          valor: semana.length.toDouble(),
+                          builder: (context, v) => StatCard(
+                            valor: '${v.round()}',
+                            etiqueta: 'Sesiones',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: NumeroAnimado(
+                          valor: volumenSemana,
+                          builder: (context, v) => StatCard(
+                            valor: formatearMiles(v),
+                            unidad: 'kg',
+                            etiqueta: 'Volumen',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: NumeroAnimado(
+                          valor: tiempoSemana.inSeconds.toDouble(),
+                          builder: (context, v) => StatCard(
+                            valor: formatearTiempo(
+                              Duration(seconds: v.round()),
+                            ),
+                            etiqueta: 'Tiempo',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              _seccion(
+                3,
+                // Si cambia la rutina que toca (p. ej. al terminar un
+                // entrenamiento), la tarjeta se reemplaza deslizándose.
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 400),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (hijo, animacion) => FadeTransition(
+                    opacity: animacion,
+                    child: SlideTransition(
+                      position: Tween(
+                        begin: const Offset(0.08, 0),
+                        end: Offset.zero,
+                      ).animate(animacion),
+                      child: hijo,
+                    ),
+                  ),
+                  child: _rutinaHoy(
+                    rutina: rutinas.siguiente(entrenamientos.historial),
+                    perfil: perfil,
+                    entrenoHoy: entrenamientos.entrenoEl(hoy),
+                    hoy: hoy,
+                    navegacion: navegacion,
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
-              _TituloSeccion(
-                texto: 'Últimas sesiones',
-                accion: 'Ver todas',
-                onAccion: () => navegacion.irA(Pestana.entrenamiento),
+              _seccion(
+                4,
+                _TituloSeccion(
+                  texto: 'Últimas sesiones',
+                  accion: 'Ver todas',
+                  onAccion: () => navegacion.irA(Pestana.entrenamiento),
+                ),
               ),
               const SizedBox(height: 4),
               if (ultimas.isEmpty)
-                const _SinSesiones()
+                _seccion(5, const _SinSesiones())
               else
-                for (final sesion in ultimas) ...[
-                  _sesionCard(sesion, perfil, hoy, navegacion),
-                  const SizedBox(height: 8),
-                ],
+                for (final (i, sesion) in ultimas.indexed)
+                  _seccion(
+                    5 + i,
+                    desde: const Offset(48, 0),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: PressableScale(
+                        child: _sesionCard(sesion, perfil, hoy, navegacion),
+                      ),
+                    ),
+                  ),
             ],
           ),
         ),
@@ -124,8 +219,11 @@ class InicioPage extends StatelessWidget {
         context.read<EntrenamientosProvider>().recargar(),
       ]);
     } catch (_) {
-      mensajero.showSnackBar(const SnackBar(
-          content: Text('No se pudo actualizar. Revisa tu conexión.')));
+      mensajero.showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo actualizar. Revisa tu conexión.'),
+        ),
+      );
     }
   }
 
@@ -144,7 +242,7 @@ class InicioPage extends StatelessWidget {
     ];
   }
 
-  Widget _rutinaHoy({
+  static Widget _rutinaHoy({
     required Rutina? rutina,
     required Perfil? perfil,
     required bool entrenoHoy,
@@ -153,6 +251,7 @@ class InicioPage extends StatelessWidget {
   }) {
     if (rutina == null) {
       return RutinaHoyCard(
+        key: const ValueKey('sin-rutina'),
         etiqueta: 'Sin rutinas',
         titulo: 'Arma tu primera rutina',
         detalle: 'Elige ejercicios y empieza a entrenar.',
@@ -161,6 +260,7 @@ class InicioPage extends StatelessWidget {
       );
     }
     return RutinaHoyCard(
+      key: ValueKey('rutina-${rutina.id}'),
       etiqueta: _etiquetaRutinaHoy(perfil, entrenoHoy, hoy),
       titulo: _tituloRutina(rutina),
       detalle: [
@@ -175,7 +275,11 @@ class InicioPage extends StatelessWidget {
   }
 
   /// "Toca hoy", "Hoy ya entrenaste · Próxima" o el próximo día de entrenamiento.
-  static String _etiquetaRutinaHoy(Perfil? perfil, bool entrenoHoy, DateTime hoy) {
+  static String _etiquetaRutinaHoy(
+    Perfil? perfil,
+    bool entrenoHoy,
+    DateTime hoy,
+  ) {
     if (entrenoHoy) return 'Hoy ya entrenaste · Próxima';
     if (perfil == null) return 'Siguiente rutina';
     if (perfil.esDiaEntrenamiento(hoy)) return 'Toca hoy';
@@ -190,8 +294,10 @@ class InicioPage extends StatelessWidget {
     final grupos = rutina.grupos.take(2).toList();
     final detalle = grupos.isEmpty
         ? rutina.categoria
-        : [grupos.first, ...grupos.skip(1).map((g) => g.toLowerCase())]
-            .join(' y ');
+        : [
+            grupos.first,
+            ...grupos.skip(1).map((g) => g.toLowerCase()),
+          ].join(' y ');
     return detalle.isEmpty ? rutina.nombre : '${rutina.nombre} · $detalle';
   }
 
@@ -214,8 +320,8 @@ class InicioPage extends StatelessWidget {
       metrica: conPesas
           ? '${formatearMiles(volumen)} kg'
           : perfil == null
-              ? '${sesion.totalSeries} series'
-              : '${formatearMiles(sesion.kcalEstimadas(perfil.pesoKg))} kcal',
+          ? '${sesion.totalSeries} series'
+          : '${formatearMiles(sesion.kcalEstimadas(perfil.pesoKg))} kcal',
       onTap: () => navegacion.irA(Pestana.entrenamiento),
     );
   }
@@ -246,42 +352,48 @@ class _Encabezado extends StatelessWidget {
             children: [
               Text(
                 fecha,
-                style: tema.textTheme.bodySmall
-                    ?.copyWith(color: colores.onSurfaceVariant),
+                style: tema.textTheme.bodySmall?.copyWith(
+                  color: colores.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
                 nombre.isEmpty ? 'Hola' : 'Hola, $nombre',
-                style: tema.textTheme.headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                style: tema.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
         ),
-        Semantics(
-          button: true,
-          label: 'Ir a mi perfil',
-          child: InkWell(
-            onTap: onAvatar,
-            customBorder: const CircleBorder(),
-            child: Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colores.primary.withValues(alpha: 0.15),
-                border: Border.all(color: colores.primary, width: 1.5),
-              ),
-              child: iniciales.isEmpty
-                  ? Icon(Icons.person, size: 20, color: colores.primary)
-                  : Text(
-                      iniciales,
-                      style: tema.textTheme.labelLarge?.copyWith(
-                        color: colores.primary,
-                        fontWeight: FontWeight.w700,
+        Rebote(
+          retraso: const Duration(milliseconds: 250),
+          duracion: const Duration(milliseconds: 650),
+          child: Semantics(
+            button: true,
+            label: 'Ir a mi perfil',
+            child: InkWell(
+              onTap: onAvatar,
+              customBorder: const CircleBorder(),
+              child: Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colores.primary.withValues(alpha: 0.15),
+                  border: Border.all(color: colores.primary, width: 1.5),
+                ),
+                child: iniciales.isEmpty
+                    ? Icon(Icons.person, size: 20, color: colores.primary)
+                    : Text(
+                        iniciales,
+                        style: tema.textTheme.labelLarge?.copyWith(
+                          color: colores.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
+              ),
             ),
           ),
         ),
@@ -340,8 +452,9 @@ class _SinSesiones extends StatelessWidget {
       child: Text(
         'Aún no terminas ningún entrenamiento.',
         textAlign: TextAlign.center,
-        style: tema.textTheme.bodyMedium
-            ?.copyWith(color: tema.colorScheme.onSurfaceVariant),
+        style: tema.textTheme.bodyMedium?.copyWith(
+          color: tema.colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }

@@ -133,6 +133,8 @@ void main() {
     tester,
   ) async {
     await montar(tester, repositorioConDatos(), InicioPage(ahora: () => hoy));
+    // Deja terminar las animaciones: los números cuentan desde 0.
+    await tester.pumpAndSettle();
 
     // Encabezado.
     expect(find.text('Miércoles 14 de octubre'), findsOneWidget);
@@ -171,6 +173,7 @@ void main() {
       RepositorioFalso(),
       InicioPage(ahora: () => hoy),
     );
+    await tester.pumpAndSettle();
 
     // Cuenta nueva: el perfil se crea con el nombre del registro.
     expect(find.text('Hola, Nuevo'), findsOneWidget);
