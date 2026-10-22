@@ -30,6 +30,30 @@ class RutinasProvider extends ChangeNotifier {
     return lista.first;
   }
 
+  /// Mueve un ejercicio de [desde] a [hasta] (índices tras quitarlo) y lo
+  /// guarda. La lista cambia al instante; si falla el guardado, vuelve atrás.
+  Future<void> reordenar(int rutinaId, int desde, int hasta) async {
+    final indice = _rutinas.indexWhere((r) => r.id == rutinaId);
+    if (indice == -1 || desde == hasta) return;
+    final anterior = _rutinas[indice];
+    final ejercicios = [...anterior.ejercicios];
+    ejercicios.insert(hasta, ejercicios.removeAt(desde));
+    _reemplazar(anterior.copyWith(ejercicios: ejercicios));
+    try {
+      await _repositorio.guardarEjercicios(rutinaId, ejercicios);
+    } catch (_) {
+      _reemplazar(anterior);
+      rethrow;
+    }
+  }
+
+  void _reemplazar(Rutina rutina) {
+    _rutinas = [
+      for (final r in _rutinas) r.id == rutina.id ? rutina : r,
+    ];
+    notifyListeners();
+  }
+
   Future<void> cargar(String usuarioId) async {
     _rutinas = await _repositorio.rutinas(usuarioId);
     _usuarioId = usuarioId;

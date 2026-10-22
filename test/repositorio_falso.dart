@@ -43,6 +43,20 @@ class RepositorioFalso implements DatosRepositorio {
   @override
   Future<List<Rutina>> rutinas(String usuarioId) async => rutinasGuardadas;
 
+  /// Ejercicios guardados con [guardarEjercicios], por id de rutina.
+  final ejerciciosGuardados = <int, List<Ejercicio>>{};
+
+  @override
+  Future<Rutina> guardarEjercicios(
+    int rutinaId,
+    List<Ejercicio> ejercicios,
+  ) async {
+    ejerciciosGuardados[rutinaId] = ejercicios;
+    return rutinasGuardadas
+        .firstWhere((r) => r.id == rutinaId)
+        .copyWith(ejercicios: ejercicios);
+  }
+
   @override
   Future<List<Sesion>> sesiones(String usuarioId) async => sesionesGuardadas;
 
