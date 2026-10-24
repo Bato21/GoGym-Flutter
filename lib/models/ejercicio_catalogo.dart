@@ -34,8 +34,11 @@ class EjercicioCatalogo {
   static const _baseImage =
       'https://cdn.jsdelivr.net/gh/RepDB/exercise-dataset@6d88fc6f3a398845f7f2c17f3a5f45cfc4effa2f/images/flat/';
 
+  /// URL completa de un nombre de archivo de RepDB.
+  static String urlDe(String imagen) => '$_baseImage$imagen';
+
   /// URL completa de la imagen, o null si el ejercicio no tiene
-  String? get urlImagen => imagen == null ? null : '$_baseImage$imagen';
+  String? get urlImagen => imagen == null ? null : urlDe(imagen!);
 
   factory EjercicioCatalogo.fromFila(Map<String, dynamic> fila) =>
       EjercicioCatalogo(

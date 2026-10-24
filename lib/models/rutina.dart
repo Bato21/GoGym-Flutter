@@ -1,3 +1,5 @@
+import 'ejercicio_catalogo.dart';
+
 /// MET para ejercicios sin dato del catálogo (fuerza moderada).
 const double metPorDefecto = 5;
 
@@ -14,6 +16,7 @@ class Ejercicio {
     this.catalogoId,
     this.imagen,
     this.met,
+    this.json = const {},
   });
 
   final int id;
@@ -29,6 +32,35 @@ class Ejercicio {
   final String? imagen;
   final double? met;
 
+  /// El objeto tal como vino de la tabla. [toJson] parte de él para no perder
+  /// campos que guarda la app de Ionic y que aquí no se usan.
+  final Map<String, dynamic> json;
+
+  String? get urlImagen =>
+      imagen == null ? null : EjercicioCatalogo.urlDe(imagen!);
+
+  /// "4 × 8 · 45 kg", "3 × 10 · Peso corporal" o "3 series · 60 s".
+  String get resumen {
+    final volumen = repeticiones > 0
+        ? '$series × $repeticiones'
+        : '$series ${series == 1 ? 'serie' : 'series'}';
+    return carga.isEmpty ? volumen : '$volumen · $carga';
+  }
+
+  Map<String, dynamic> toJson() => {
+        ...json,
+        'id': id,
+        'nombre': nombre,
+        'grupo': grupo,
+        'series': series,
+        'repeticiones': repeticiones,
+        'carga': carga,
+        'descansoSeg': descansoSeg,
+        if (catalogoId != null) 'catalogoId': catalogoId,
+        if (imagen != null) 'imagen': imagen,
+        if (met != null) 'met': met,
+      };
+
   factory Ejercicio.fromJson(Map<String, dynamic> json) => Ejercicio(
         id: (json['id'] as num).toInt(),
         nombre: json['nombre'] as String? ?? '',
@@ -40,6 +72,7 @@ class Ejercicio {
         catalogoId: json['catalogoId'] as String?,
         imagen: json['imagen'] as String?,
         met: (json['met'] as num?)?.toDouble(),
+        json: json,
       );
 }
 
@@ -72,6 +105,25 @@ class Rutina {
             Ejercicio.fromJson(e as Map<String, dynamic>),
         ],
       );
+
+  Rutina copyWith({List<Ejercicio>? ejercicios}) => Rutina(
+        id: id,
+        nombre: nombre,
+        categoria: categoria,
+        nivel: nivel,
+        minutos: minutos,
+        ejercicios: ejercicios ?? this.ejercicios,
+      );
+
+  /// "6 ejercicios · 55 min · Intermedio", sin las partes que falten.
+  String get resumen => [
+        '${ejercicios.length} '
+            '${ejercicios.length == 1 ? 'ejercicio' : 'ejercicios'}',
+        if (minutos > 0) '$minutos min',
+        if (nivel.isNotEmpty) nivel,
+      ].join(' · ');
+
+  int get totalSeries => ejercicios.fold(0, (suma, e) => suma + e.series);
 
   /// Grupos musculares sin repetir, en el orden de los ejercicios.
   List<String> get grupos => [

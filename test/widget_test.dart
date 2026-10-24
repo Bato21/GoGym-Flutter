@@ -11,6 +11,7 @@ import 'package:go_gym/providers/navegacion_provider.dart';
 import 'package:go_gym/providers/perfil_provider.dart';
 import 'package:go_gym/providers/rutinas_provider.dart';
 import 'package:go_gym/perfil/perfil_page.dart';
+import 'package:go_gym/rutina/rutina_page.dart';
 import 'package:go_gym/tabs/tabs_page.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
@@ -258,5 +259,63 @@ void main() {
 
     expect(repositorio.perfilGuardado?.objetivo, 'Ganar masa muscular');
     expect(find.text('Perfil actualizado'), findsOneWidget);
+  });
+  testWidgets('Rutinas lista, abre el detalle y empieza la rutina', (
+    tester,
+  ) async {
+    final navegacion = await montar(
+      tester,
+      repositorioConDatos(),
+      const RutinaPage(),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('3 rutinas · rotan en orden'), findsOneWidget);
+    // Tras Legs A toca Push A.
+    expect(find.text('FUERZA · SIGUIENTE'), findsOneWidget);
+    expect(find.text('Pull B'), findsOneWidget);
+    expect(find.text('Legs A'), findsOneWidget);
+    expect(find.text('3 ejercicios · 55 min · Intermedio'), findsOneWidget);
+
+    await tester.tap(find.text('Push A'));
+    await tester.pumpAndSettle();
+
+    // Detalle: cabecera, grupos y ejercicios como en el mockup.
+    expect(find.text('RUTINA · FUERZA'), findsOneWidget);
+    expect(find.text('Pecho'), findsOneWidget);
+    expect(find.text('Hombro'), findsOneWidget);
+    expect(find.text('EJERCICIOS'), findsOneWidget);
+    expect(find.text('3 × 10 · 20 kg'), findsNWidgets(3));
+
+    // Al tocar un ejercicio se despliegan sus series y el descanso.
+    expect(find.text('Descanso 1:00'), findsNothing);
+    await tester.tap(find.text('Ejercicio 11'));
+    await tester.pumpAndSettle();
+    expect(find.text('Descanso 1:00'), findsOneWidget);
+    expect(find.text('S3'), findsOneWidget);
+
+    await tester.tap(find.text('Empezar rutina'));
+    await tester.pumpAndSettle();
+    expect(navegacion.actual, Pestana.entrenamiento);
+    expect(find.text('EJERCICIOS'), findsNothing);
+  });
+
+  testWidgets('Rutinas sin datos muestra el estado vacío', (tester) async {
+    await montar(tester, RepositorioFalso(), const RutinaPage());
+    await tester.pumpAndSettle();
+    expect(find.text('Aún no tienes rutinas'), findsOneWidget);
+  });
+
+  test('Reordenar ejercicios cambia la rutina y la guarda', () async {
+    final repositorio = repositorioConDatos();
+    final rutinas = RutinasProvider(repositorio);
+    await rutinas.cargar('u1');
+
+    await rutinas.reordenar(1, 0, 2);
+
+    final ids = [for (final e in rutinas.rutinas.first.ejercicios) e.id];
+    expect(ids, [12, 13, 11]);
+    expect([for (final e in repositorio.ejerciciosGuardados[1]!) e.id], ids);
+    expect(rutinas.rutinas.first.ejercicios.first.toJson()['id'], 12);
   });
 }

@@ -28,6 +28,10 @@ abstract class DatosRepositorio {
   /// Rutinas en orden de creación.
   Future<List<Rutina>> rutinas(String usuarioId);
 
+  /// Reemplaza los ejercicios de una rutina (p. ej. al reordenarlos) y
+  /// devuelve la fila actualizada.
+  Future<Rutina> guardarEjercicios(int rutinaId, List<Ejercicio> ejercicios);
+
   /// Entrenamientos terminados, el más reciente primero.
   Future<List<Sesion>> sesiones(String usuarioId);
 }
@@ -78,6 +82,20 @@ class SupabaseDatosRepositorio implements DatosRepositorio {
     final filas =
         await _db.from('rutinas').select().eq('user_id', usuarioId).order('id');
     return filas.map(Rutina.fromFila).toList();
+  }
+
+  @override
+  Future<Rutina> guardarEjercicios(
+      int rutinaId, List<Ejercicio> ejercicios) async {
+    final fila = await _db
+        .from('rutinas')
+        .update({
+          'ejercicios': [for (final e in ejercicios) e.toJson()],
+        })
+        .eq('id', rutinaId)
+        .select()
+        .single();
+    return Rutina.fromFila(fila);
   }
 
   @override
