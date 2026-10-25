@@ -203,8 +203,34 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('VR'));
     await tester.pumpAndSettle();
+    expect(find.text('Ver perfil'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('menu-ver-perfil')));
+    await tester.pumpAndSettle();
     expect(navegacion.actual, Pestana.perfil);
     expect(find.widgetWithText(AppBar, 'Perfil'), findsOneWidget);
+  });
+
+  testWidgets('El menú del avatar permite cerrar sesión', (tester) async {
+    var cierres = 0;
+    await montar(
+      tester,
+      repositorioConDatos(),
+      TabsPage(onCerrarSesion: () async => cierres++),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('menu-avatar')));
+    await tester.pumpAndSettle();
+    expect(find.text('Ver perfil'), findsOneWidget);
+    expect(find.text('Cerrar sesión'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('menu-cerrar-sesion')));
+    await tester.pumpAndSettle();
+    expect(cierres, 0);
+
+    await tester.tap(find.byKey(const Key('confirmar-cerrar-sesion')));
+    await tester.pumpAndSettle();
+    expect(cierres, 1);
   });
 
   testWidgets('Logros calcula desbloqueos y avances desde el historial', (
@@ -260,6 +286,39 @@ void main() {
     expect(repositorio.perfilGuardado?.objetivo, 'Ganar masa muscular');
     expect(find.text('Perfil actualizado'), findsOneWidget);
   });
+
+  testWidgets('Perfil pide confirmación antes de cerrar sesión', (
+    tester,
+  ) async {
+    var cierres = 0;
+    await montar(
+      tester,
+      repositorioConDatos(),
+      PerfilPage(ahora: () => hoy, onCerrarSesion: () async => cierres++),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('cerrar-sesion')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const Key('cerrar-sesion')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        '¿Quieres salir de tu cuenta? Tendrás que iniciar sesión nuevamente.',
+      ),
+      findsOneWidget,
+    );
+    expect(cierres, 0);
+
+    await tester.tap(find.byKey(const Key('confirmar-cerrar-sesion')));
+    await tester.pumpAndSettle();
+    expect(cierres, 1);
+  });
+
   testWidgets('Rutinas lista, abre el detalle y empieza la rutina', (
     tester,
   ) async {

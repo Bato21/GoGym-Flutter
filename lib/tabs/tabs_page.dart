@@ -13,17 +13,9 @@ import '../widgets/barra_navegacion.dart';
 /// Barra de pestañas inferior. Equivalente a `src/app/tabs` en Ionic.
 /// La pestaña activa vive en [NavegacionProvider], así una vista puede abrir otra.
 class TabsPage extends StatelessWidget {
-  const TabsPage({super.key});
+  const TabsPage({super.key, this.onCerrarSesion});
 
-  // Mismo orden que [Pestana].
-  static const _paginas = <Widget>[
-    InicioPage(),
-    EntrenamientoPage(),
-    RutinaPage(),
-    CaloriasPage(),
-    LogrosPage(),
-    PerfilPage(),
-  ];
+  final Future<void> Function()? onCerrarSesion;
 
   // Mismo orden que [Pestana].
   static const _destinos = [
@@ -63,10 +55,20 @@ class TabsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final navegacion = context.watch<NavegacionProvider>();
     final indice = navegacion.actual.index;
+    // Mismo orden que [Pestana]. Se construye aquí para pasar la sesión a
+    // Perfil sin acoplar esa pantalla directamente con Supabase.
+    final paginas = <Widget>[
+      InicioPage(onCerrarSesion: onCerrarSesion),
+      const EntrenamientoPage(),
+      const RutinaPage(),
+      const CaloriasPage(),
+      const LogrosPage(),
+      PerfilPage(onCerrarSesion: onCerrarSesion),
+    ];
     return Scaffold(
       // IndexedStack mantiene el estado de cada pestaña al cambiar,
       // igual que ion-tabs.
-      body: IndexedStack(index: indice, children: _paginas),
+      body: IndexedStack(index: indice, children: paginas),
       bottomNavigationBar: BarraNavegacion(
         destinos: _destinos,
         indice: indice,

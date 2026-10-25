@@ -11,6 +11,7 @@ import '../providers/rutinas_provider.dart';
 import '../utils/fechas.dart';
 import '../utils/formato.dart';
 import '../widgets/aparecer.dart';
+import '../widgets/cerrar_sesion.dart';
 import '../widgets/pressable_scale.dart';
 import '../widgets/sesion_card.dart';
 import '../widgets/stat_card.dart';
@@ -23,10 +24,11 @@ import 'widgets/rutina_hoy_card.dart';
 /// Cada vez que se entra a la pestaña, las secciones llegan en cascada y los
 /// números cuentan hasta su valor.
 class InicioPage extends StatefulWidget {
-  const InicioPage({super.key, this.ahora = DateTime.now});
+  const InicioPage({super.key, this.ahora = DateTime.now, this.onCerrarSesion});
 
   /// Reloj inyectable para las pruebas.
   final DateTime Function() ahora;
+  final Future<void> Function()? onCerrarSesion;
 
   /// Cuántas sesiones muestra la lista.
   static const cantidadUltimas = 3;
@@ -96,7 +98,8 @@ class _InicioPageState extends State<InicioPage> {
                   fecha: fechaLarga(hoy),
                   nombre: perfil?.nombre ?? '',
                   iniciales: perfil?.iniciales ?? '',
-                  onAvatar: () => navegacion.irA(Pestana.perfil),
+                  onVerPerfil: () => navegacion.irA(Pestana.perfil),
+                  onCerrarSesion: widget.onCerrarSesion,
                 ),
               ),
               const SizedBox(height: 16),
@@ -334,13 +337,15 @@ class _Encabezado extends StatelessWidget {
     required this.fecha,
     required this.nombre,
     required this.iniciales,
-    required this.onAvatar,
+    required this.onVerPerfil,
+    required this.onCerrarSesion,
   });
 
   final String fecha;
   final String nombre;
   final String iniciales;
-  final VoidCallback onAvatar;
+  final VoidCallback onVerPerfil;
+  final Future<void> Function()? onCerrarSesion;
 
   @override
   Widget build(BuildContext context) {
@@ -371,33 +376,94 @@ class _Encabezado extends StatelessWidget {
         Rebote(
           retraso: const Duration(milliseconds: 250),
           duracion: const Duration(milliseconds: 650),
-          child: Semantics(
-            button: true,
-            label: 'Ir a mi perfil',
-            child: InkWell(
-              onTap: onAvatar,
-              customBorder: const CircleBorder(),
-              child: Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colores.primary.withValues(alpha: 0.15),
-                  border: Border.all(color: colores.primary, width: 1.5),
+          child: PopupMenuButton<_AccionCuenta>(
+            key: const Key('menu-avatar'),
+            tooltip: 'Abrir menú de cuenta',
+            offset: const Offset(0, 8),
+            position: PopupMenuPosition.under,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            onSelected: (accion) async {
+              switch (accion) {
+                case _AccionCuenta.verPerfil:
+                  onVerPerfil();
+                  return;
+                case _AccionCuenta.cerrarSesion:
+                  final cerrar = onCerrarSesion;
+                  if (cerrar != null) {
+                    await confirmarCierreSesion(context, cerrar);
+                  }
+                  return;
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                key: Key('menu-ver-perfil'),
+                value: _AccionCuenta.verPerfil,
+                child: _OpcionCuenta(
+                  icono: Icons.person_outline_rounded,
+                  texto: 'Ver perfil',
                 ),
-                child: iniciales.isEmpty
-                    ? Icon(Icons.person, size: 20, color: colores.primary)
-                    : Text(
-                        iniciales,
-                        style: tema.textTheme.labelLarge?.copyWith(
-                          color: colores.primary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
               ),
+              if (onCerrarSesion != null) ...[
+                const PopupMenuDivider(),
+                PopupMenuItem(
+                  key: const Key('menu-cerrar-sesion'),
+                  value: _AccionCuenta.cerrarSesion,
+                  child: _OpcionCuenta(
+                    icono: Icons.logout_rounded,
+                    texto: 'Cerrar sesión',
+                    color: colores.error,
+                  ),
+                ),
+              ],
+            ],
+            child: Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colores.primary.withValues(alpha: 0.15),
+                border: Border.all(color: colores.primary, width: 1.5),
+              ),
+              child: iniciales.isEmpty
+                  ? Icon(Icons.person, size: 20, color: colores.primary)
+                  : Text(
+                      iniciales,
+                      style: tema.textTheme.labelLarge?.copyWith(
+                        color: colores.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
             ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+enum _AccionCuenta { verPerfil, cerrarSesion }
+
+class _OpcionCuenta extends StatelessWidget {
+  const _OpcionCuenta({required this.icono, required this.texto, this.color});
+
+  final IconData icono;
+  final String texto;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorFinal = color ?? Theme.of(context).colorScheme.onSurface;
+    return Row(
+      children: [
+        Icon(icono, color: colorFinal, size: 20),
+        const SizedBox(width: 12),
+        Text(
+          texto,
+          style: TextStyle(color: colorFinal, fontWeight: FontWeight.w600),
         ),
       ],
     );
