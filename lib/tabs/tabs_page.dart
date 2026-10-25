@@ -8,6 +8,7 @@ import '../logros/logros_page.dart';
 import '../perfil/perfil_page.dart';
 import '../providers/navegacion_provider.dart';
 import '../rutina/rutina_page.dart';
+import '../widgets/barra_navegacion.dart';
 
 /// Barra de pestañas inferior. Equivalente a `src/app/tabs` en Ionic.
 /// La pestaña activa vive en [NavegacionProvider], así una vista puede abrir otra.
@@ -24,6 +25,40 @@ class TabsPage extends StatelessWidget {
     PerfilPage(),
   ];
 
+  // Mismo orden que [Pestana].
+  static const _destinos = [
+    DestinoBarra(
+      icono: Icons.home_outlined,
+      iconoActivo: Icons.home_rounded,
+      etiqueta: 'Inicio',
+    ),
+    DestinoBarra(
+      icono: Icons.fitness_center_outlined,
+      iconoActivo: Icons.fitness_center,
+      etiqueta: 'Entrenar',
+    ),
+    DestinoBarra(
+      icono: Icons.calendar_month_outlined,
+      iconoActivo: Icons.calendar_month,
+      etiqueta: 'Rutinas',
+    ),
+    DestinoBarra(
+      icono: Icons.local_fire_department_outlined,
+      iconoActivo: Icons.local_fire_department,
+      etiqueta: 'Calorías',
+    ),
+    DestinoBarra(
+      icono: Icons.emoji_events_outlined,
+      iconoActivo: Icons.emoji_events,
+      etiqueta: 'Logros',
+    ),
+    DestinoBarra(
+      icono: Icons.person_outline,
+      iconoActivo: Icons.person,
+      etiqueta: 'Perfil',
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final navegacion = context.watch<NavegacionProvider>();
@@ -32,24 +67,10 @@ class TabsPage extends StatelessWidget {
       // IndexedStack mantiene el estado de cada pestaña al cambiar,
       // igual que ion-tabs.
       body: IndexedStack(index: indice, children: _paginas),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: indice,
+      bottomNavigationBar: BarraNavegacion(
+        destinos: _destinos,
+        indice: indice,
         onTap: (i) => navegacion.irA(Pestana.values[i]),
-        type: BottomNavigationBarType.fixed,
-        selectedFontSize: 11,
-        unselectedFontSize: 11,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.fitness_center), label: 'Entrenamiento'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_month), label: 'Rutina'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.local_fire_department), label: 'Calorías'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.emoji_events), label: 'Logros'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
-        ],
       ),
     );
   }

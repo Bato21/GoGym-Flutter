@@ -108,9 +108,11 @@ class _InicioPageState extends State<InicioPage> {
                   dias: _estadosSemana(entrenamientos.diasDeLaSemana(hoy), hoy),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 16),
+              _seccion(2, const _TituloSeccion(texto: 'Esta semana')),
+              const SizedBox(height: 8),
               _seccion(
-                2,
+                3,
                 IntrinsicHeight(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -153,7 +155,7 @@ class _InicioPageState extends State<InicioPage> {
               ),
               const SizedBox(height: 10),
               _seccion(
-                3,
+                4,
                 // Si cambia la rutina que toca (p. ej. al terminar un
                 // entrenamiento), la tarjeta se reemplaza deslizándose.
                 AnimatedSwitcher(
@@ -181,7 +183,7 @@ class _InicioPageState extends State<InicioPage> {
               ),
               const SizedBox(height: 20),
               _seccion(
-                4,
+                5,
                 _TituloSeccion(
                   texto: 'Últimas sesiones',
                   accion: 'Ver todas',
@@ -190,11 +192,11 @@ class _InicioPageState extends State<InicioPage> {
               ),
               const SizedBox(height: 4),
               if (ultimas.isEmpty)
-                _seccion(5, const _SinSesiones())
+                _seccion(6, const _SinSesiones())
               else
                 for (final (i, sesion) in ultimas.indexed)
                   _seccion(
-                    5 + i,
+                    6 + i,
                     desde: const Offset(48, 0),
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
@@ -402,16 +404,13 @@ class _Encabezado extends StatelessWidget {
   }
 }
 
+/// Título de sección en versalitas, con una acción opcional a la derecha.
 class _TituloSeccion extends StatelessWidget {
-  const _TituloSeccion({
-    required this.texto,
-    required this.accion,
-    required this.onAccion,
-  });
+  const _TituloSeccion({required this.texto, this.accion, this.onAccion});
 
   final String texto;
-  final String accion;
-  final VoidCallback onAccion;
+  final String? accion;
+  final VoidCallback? onAccion;
 
   @override
   Widget build(BuildContext context) {
@@ -428,14 +427,15 @@ class _TituloSeccion extends StatelessWidget {
             ),
           ),
         ),
-        TextButton(
-          onPressed: onAccion,
-          style: TextButton.styleFrom(
-            visualDensity: VisualDensity.compact,
-            textStyle: tema.textTheme.labelMedium,
+        if (accion != null)
+          TextButton(
+            onPressed: onAccion,
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              textStyle: tema.textTheme.labelMedium,
+            ),
+            child: Text(accion!),
           ),
-          child: Text(accion),
-        ),
       ],
     );
   }

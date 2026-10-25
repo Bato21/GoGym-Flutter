@@ -9,18 +9,21 @@ import 'foto_rutina.dart';
 String heroFotoRutina(int id) => 'foto-rutina-$id';
 
 /// Una rutina en la lista: portada, nombre, resumen y grupos musculares.
-/// [siguiente] la destaca como la que toca según la rotación.
+/// [siguiente] la destaca como la que toca según la rotación y [orden] marca
+/// su lugar en ella (null si no rota, p. ej. porque no tiene ejercicios).
 class RutinaCard extends StatelessWidget {
   const RutinaCard({
     super.key,
     required this.rutina,
     required this.onTap,
     this.siguiente = false,
+    this.orden,
   });
 
   final Rutina rutina;
   final VoidCallback onTap;
   final bool siguiente;
+  final int? orden;
 
   @override
   Widget build(BuildContext context) {
@@ -37,16 +40,27 @@ class RutinaCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            Hero(
-              tag: heroFotoRutina(rutina.id),
-              child: SizedBox(
-                width: 64,
-                height: 64,
-                child: FotoRutina(
-                  categoria: rutina.categoria,
-                  radio: BorderRadius.circular(12),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Hero(
+                  tag: heroFotoRutina(rutina.id),
+                  child: SizedBox(
+                    width: 64,
+                    height: 64,
+                    child: FotoRutina(
+                      categoria: rutina.categoria,
+                      radio: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
-              ),
+                if (orden != null)
+                  Positioned(
+                    top: -6,
+                    left: -6,
+                    child: _Orden(numero: orden!, destacado: siguiente),
+                  ),
+              ],
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -96,6 +110,43 @@ class RutinaCard extends StatelessWidget {
             ),
             Icon(Icons.chevron_right, color: colores.onSurfaceVariant),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Círculo con el lugar de la rutina en la rotación.
+class _Orden extends StatelessWidget {
+  const _Orden({required this.numero, required this.destacado});
+
+  final int numero;
+  final bool destacado;
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final colores = tema.colorScheme;
+    return Semantics(
+      label: 'Número $numero en la rotación',
+      excludeSemantics: true,
+      child: Container(
+        width: 22,
+        height: 22,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: destacado ? colores.primary : colores.surfaceContainer,
+          border: Border.all(
+            color: destacado ? colores.primary : colores.outlineVariant,
+          ),
+        ),
+        child: Text(
+          '$numero',
+          style: tema.textTheme.labelSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: destacado ? colores.onPrimary : colores.onSurfaceVariant,
+          ),
         ),
       ),
     );
