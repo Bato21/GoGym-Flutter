@@ -10,13 +10,15 @@ import '../providers/entrenamientos_provider.dart';
 import '../providers/perfil_provider.dart';
 import '../providers/rutinas_provider.dart';
 import '../utils/fechas.dart';
+import '../widgets/cerrar_sesion.dart';
 import '../widgets/pressable_scale.dart';
 import '../widgets/tarjeta.dart';
 
 class PerfilPage extends StatelessWidget {
-  const PerfilPage({super.key, this.ahora = DateTime.now});
+  const PerfilPage({super.key, this.ahora = DateTime.now, this.onCerrarSesion});
 
   final DateTime Function() ahora;
+  final Future<void> Function()? onCerrarSesion;
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +63,8 @@ class PerfilPage extends StatelessWidget {
               _CabeceraPerfil(
                 perfil: perfil,
                 racha: entrenamientos.rachaActual(hoy),
+                entrenamientosSemana: semana,
+                metaSemana: metaSemana,
               ),
               const SizedBox(height: 22),
               const _TituloSeccion(
@@ -127,6 +131,18 @@ class PerfilPage extends StatelessWidget {
                   ),
                 ),
               ),
+              if (onCerrarSesion != null) ...[
+                const SizedBox(height: 26),
+                const _TituloSeccion(
+                  icono: Icons.manage_accounts_outlined,
+                  texto: 'Cuenta',
+                ),
+                const SizedBox(height: 10),
+                _CerrarSesionCard(
+                  onPressed: () =>
+                      confirmarCierreSesion(context, onCerrarSesion!),
+                ),
+              ],
             ],
           ),
         ),
@@ -217,80 +233,226 @@ class _PerfilAppBar extends StatelessWidget implements PreferredSizeWidget {
 }
 
 class _CabeceraPerfil extends StatelessWidget {
-  const _CabeceraPerfil({required this.perfil, required this.racha});
+  const _CabeceraPerfil({
+    required this.perfil,
+    required this.racha,
+    required this.entrenamientosSemana,
+    required this.metaSemana,
+  });
 
   final Perfil perfil;
   final int racha;
+  final int entrenamientosSemana;
+  final int metaSemana;
 
   @override
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
     final colores = tema.colorScheme;
     final nombre = '${perfil.nombre.trim()} ${perfil.apellido.trim()}'.trim();
-    return Tarjeta(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colores.primary,
+            Color.lerp(colores.primary, colores.secondary, .45)!,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: colores.primary.withValues(alpha: .24),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           Container(
-            width: 58,
-            height: 58,
+            width: 72,
+            height: 72,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: colores.primary.withValues(alpha: 0.1),
-              border: Border.all(color: colores.primary, width: 3),
+              color: colores.onPrimary.withValues(alpha: .16),
+              border: Border.all(
+                color: colores.onPrimary.withValues(alpha: .8),
+                width: 2.5,
+              ),
             ),
             child: perfil.iniciales.isEmpty
-                ? Icon(Icons.person, color: colores.primary, size: 31)
+                ? Icon(Icons.person, color: colores.onPrimary, size: 36)
                 : Text(
                     perfil.iniciales,
-                    style: tema.textTheme.titleMedium?.copyWith(
-                      color: colores.primary,
+                    style: tema.textTheme.titleLarge?.copyWith(
+                      color: colores.onPrimary,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             nombre.isEmpty ? 'Mi perfil' : nombre,
             textAlign: TextAlign.center,
-            style: tema.textTheme.titleMedium?.copyWith(
+            style: tema.textTheme.titleLarge?.copyWith(
+              color: colores.onPrimary,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
-            'Mi perfil de entrenamiento',
+            perfil.objetivo.trim().isEmpty
+                ? 'Mi perfil de entrenamiento'
+                : perfil.objetivo.trim(),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: tema.textTheme.bodySmall?.copyWith(
-              color: colores.onSurfaceVariant,
+              color: colores.onPrimary.withValues(alpha: .82),
             ),
           ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-            decoration: BoxDecoration(
-              color: colores.onSurface.withValues(alpha: 0.07),
-              borderRadius: BorderRadius.circular(99),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.local_fire_department,
-                  color: racha > 0 ? Colors.amber : colores.primary,
-                  size: 19,
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: _ResumenCabecera(
+                  icono: Icons.local_fire_department_rounded,
+                  valor: '$racha',
+                  etiqueta: racha == 1 ? 'día de racha' : 'días de racha',
                 ),
-                const SizedBox(width: 6),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _ResumenCabecera(
+                  icono: Icons.fitness_center_rounded,
+                  valor: '$entrenamientosSemana/$metaSemana',
+                  etiqueta: 'esta semana',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ResumenCabecera extends StatelessWidget {
+  const _ResumenCabecera({
+    required this.icono,
+    required this.valor,
+    required this.etiqueta,
+  });
+
+  final IconData icono;
+  final String valor;
+  final String etiqueta;
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final color = tema.colorScheme.onPrimary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .13),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: .18)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icono, color: color, size: 21),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  '$racha ${racha == 1 ? 'día' : 'días'} de racha',
-                  style: tema.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+                  valor,
+                  style: tema.textTheme.titleSmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                  ),
+                ),
+                Text(
+                  etiqueta,
+                  overflow: TextOverflow.ellipsis,
+                  style: tema.textTheme.labelSmall?.copyWith(
+                    color: color.withValues(alpha: .82),
                   ),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CerrarSesionCard extends StatelessWidget {
+  const _CerrarSesionCard({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final error = tema.colorScheme.error;
+    return Material(
+      color: error.withValues(alpha: .06),
+      shape: RoundedRectangleBorder(
+        borderRadius: Tarjeta.radio,
+        side: BorderSide(color: error.withValues(alpha: .28)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: const Key('cerrar-sesion'),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: error.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.logout_rounded, color: error, size: 21),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Cerrar sesión',
+                      style: tema.textTheme.bodyMedium?.copyWith(
+                        color: error,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      'Salir de esta cuenta en el dispositivo',
+                      style: tema.textTheme.bodySmall?.copyWith(
+                        color: tema.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: error),
+            ],
+          ),
+        ),
       ),
     );
   }

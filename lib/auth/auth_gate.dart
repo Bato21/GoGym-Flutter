@@ -59,10 +59,10 @@ class _AuthGateState extends State<AuthGate> {
     final datos = usuario.userMetadata ?? const {};
     return Future.wait([
       context.read<PerfilProvider>().cargar(
-            usuario.id,
-            nombre: (datos['nombre'] as String? ?? '').trim(),
-            apellido: (datos['apellido'] as String? ?? '').trim(),
-          ),
+        usuario.id,
+        nombre: (datos['nombre'] as String? ?? '').trim(),
+        apellido: (datos['apellido'] as String? ?? '').trim(),
+      ),
       context.read<RutinasProvider>().cargar(usuario.id),
       context.read<EntrenamientosProvider>().cargar(usuario.id),
     ]);
@@ -85,16 +85,16 @@ class _AuthGateState extends State<AuthGate> {
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(
-              body: Center(child: CircularProgressIndicator()));
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
         if (snapshot.hasError) {
           return _ErrorCarga(
-            onReintentar: () =>
-                setState(() => _carga = _cargar(usuario)),
+            onReintentar: () => setState(() => _carga = _cargar(usuario)),
             onCerrarSesion: widget.auth.signOut,
           );
         }
-        return const TabsPage();
+        return TabsPage(onCerrarSesion: widget.auth.signOut);
       },
     );
   }
@@ -122,10 +122,13 @@ class _ErrorCarga extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               FilledButton(
-                  onPressed: onReintentar, child: const Text('Reintentar')),
+                onPressed: onReintentar,
+                child: const Text('Reintentar'),
+              ),
               TextButton(
-                  onPressed: onCerrarSesion,
-                  child: const Text('Cerrar sesión')),
+                onPressed: onCerrarSesion,
+                child: const Text('Cerrar sesión'),
+              ),
             ],
           ),
         ),
