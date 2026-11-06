@@ -16,6 +16,8 @@ class Serie {
         rpe: (json['rpe'] as num?)?.toInt(),
       );
 
+  Map<String, dynamic> toJson() => {'kg': kg, 'reps': reps, 'rpe': rpe};
+
   /// kg × reps; 0 si falta alguno de los dos.
   double get volumen => (kg ?? 0) * (reps ?? 0);
 }
@@ -59,6 +61,18 @@ class EjercicioSesion {
             Serie.fromJson(s as Map<String, dynamic>),
         ],
       );
+
+  /// Mismas claves que guarda la app de Ionic en el jsonb `ejercicios`.
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'catalogoId': catalogoId,
+        'nombre': nombre,
+        'grupo': grupo,
+        'imagen': imagen,
+        if (met != null) 'met': met,
+        if (repsObjetivo != null) 'repsObjetivo': repsObjetivo,
+        'series': [for (final s in series) s.toJson()],
+      };
 }
 
 /// Un entrenamiento terminado. Es una fila de la tabla `sesiones`.
@@ -96,6 +110,17 @@ class Sesion {
             EjercicioSesion.fromJson(e as Map<String, dynamic>),
         ],
       );
+
+  /// Columnas de la fila `sesiones`, sin `user_id`: lo agrega el repositorio.
+  /// Las fechas viajan en UTC.
+  Map<String, dynamic> toFila() => {
+        'id': id,
+        'nombre': nombre,
+        'rutina_id': rutinaId,
+        'inicio': inicio.toUtc().toIso8601String(),
+        'fin': fin?.toUtc().toIso8601String(),
+        'ejercicios': [for (final e in ejercicios) e.toJson()],
+      };
 
   /// Suma de kg × reps de todas las series.
   double get volumen => ejercicios

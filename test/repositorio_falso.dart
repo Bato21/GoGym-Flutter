@@ -1,5 +1,6 @@
 import 'package:go_gym/data/datos_repositorio.dart';
 import 'package:go_gym/models/perfil.dart';
+import 'package:go_gym/models/registro_calorias.dart';
 import 'package:go_gym/models/rutina.dart';
 import 'package:go_gym/models/sesion.dart';
 import 'package:go_gym/models/ejercicio_catalogo.dart';
@@ -15,8 +16,10 @@ class RepositorioFalso implements DatosRepositorio {
 
   Perfil? perfilGuardado;
   final List<Rutina> rutinasGuardadas;
-  final List<Sesion> sesionesGuardadas;
-  final List<EjercicioCatalogo> catalogoGuardado;
+
+  /// Cambia con crearSesion, actualizarSesion y borrarSesion.
+  List<Sesion> sesionesGuardadas;
+  List<EjercicioCatalogo> catalogoGuardado;
 
   @override
   Future<Perfil?> perfil(String usuarioId) async => perfilGuardado;
@@ -61,9 +64,62 @@ class RepositorioFalso implements DatosRepositorio {
   Future<List<Sesion>> sesiones(String usuarioId) async => sesionesGuardadas;
 
   @override
+  Future<Sesion> crearSesion(String usuarioId, Sesion sesion) async {
+    sesionesGuardadas = [...sesionesGuardadas, sesion];
+    return sesion;
+  }
+
+  @override
+  Future<Sesion> actualizarSesion(String usuarioId, Sesion sesion) async {
+    sesionesGuardadas = [
+      for (final s in sesionesGuardadas) s.id == sesion.id ? sesion : s,
+    ];
+    return sesion;
+  }
+
+  @override
+  Future<void> borrarSesion(String usuarioId, int sesionId) async {
+    sesionesGuardadas = [
+      for (final s in sesionesGuardadas)
+        if (s.id != sesionId) s,
+    ];
+  }
+
+  /// Registros de calorías por día (a medianoche).
+  final registrosCalorias = <DateTime, RegistroCalorias>{};
+
+  @override
+  Future<RegistroCalorias?> registroCalorias(
+    String usuarioId,
+    DateTime fecha,
+  ) async => registrosCalorias[fecha];
+
+  @override
+  Future<RegistroCalorias> guardarRegistroCalorias(
+    String usuarioId,
+    RegistroCalorias registro,
+  ) async => registrosCalorias[registro.fecha] = registro;
+
+  @override
   Future<List<EjercicioCatalogo>> catalogoEjercicios() async =>
       catalogoGuardado;
 }
+
+EjercicioCatalogo ejercicioCatalogo(String id, String nombre, String grupo) =>
+    EjercicioCatalogo(
+      id: id,
+      nombre: nombre,
+      grupo: grupo,
+      met: 6,
+      categoria: 'Fuerza',
+      equipo: 'Barra',
+      musculos: const [],
+      nivel: 'Principiante',
+      descripcion: '',
+      musculosSecundarios: const [],
+      instrucciones: const [],
+      consejos: const [],
+    );
 
 Ejercicio ejercicio(int id, String grupo) => Ejercicio(
   id: id,

@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_gym/biblioteca/wger_page.dart';
+import 'package:go_gym/calorias/calorias_page.dart';
 import 'package:go_gym/data/datos_repositorio.dart';
+import 'package:go_gym/data/wger_api.dart';
+import 'package:go_gym/entrenamiento/entrenamiento_page.dart';
 import 'package:go_gym/inicio/inicio_page.dart';
 import 'package:go_gym/logros/logros_page.dart';
 import 'package:go_gym/models/perfil.dart';
+import 'package:go_gym/models/registro_calorias.dart';
 import 'package:go_gym/models/rutina.dart';
 import 'package:go_gym/models/sesion.dart';
+import 'package:go_gym/providers/calorias_provider.dart';
 import 'package:go_gym/providers/entrenamientos_provider.dart';
 import 'package:go_gym/providers/navegacion_provider.dart';
 import 'package:go_gym/providers/perfil_provider.dart';
@@ -17,6 +23,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'repositorio_falso.dart';
+import 'wger_falso.dart';
 
 /// Miércoles 14 de octubre de 2026, 18:00.
 final hoy = DateTime(2026, 10, 14, 18);
@@ -96,8 +103,9 @@ RepositorioFalso repositorioConDatos() => RepositorioFalso(
 Future<NavegacionProvider> montar(
   WidgetTester tester,
   RepositorioFalso repositorio,
-  Widget hijo,
-) async {
+  Widget hijo, {
+  WgerApi? wger,
+}) async {
   tester.view.physicalSize = const Size(1200, 3000);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
@@ -105,20 +113,24 @@ Future<NavegacionProvider> montar(
   final perfil = PerfilProvider(repositorio);
   final rutinas = RutinasProvider(repositorio);
   final entrenamientos = EntrenamientosProvider(repositorio);
+  final calorias = CaloriasProvider(repositorio);
   final navegacion = NavegacionProvider();
   await Future.wait([
     perfil.cargar('u1', nombre: 'Nuevo'),
     rutinas.cargar('u1'),
     entrenamientos.cargar('u1'),
+    calorias.cargar('u1', hoy: hoy),
   ]);
 
   await tester.pumpWidget(
     MultiProvider(
       providers: [
         Provider<DatosRepositorio>.value(value: repositorio),
+        Provider<WgerApi>.value(value: wger ?? wgerFalso()),
         ChangeNotifierProvider.value(value: perfil),
         ChangeNotifierProvider.value(value: rutinas),
         ChangeNotifierProvider.value(value: entrenamientos),
+        ChangeNotifierProvider.value(value: calorias),
         ChangeNotifierProvider.value(value: navegacion),
       ],
       child: MaterialApp(home: hijo),
@@ -195,7 +207,16 @@ void main() {
       const TabsPage(),
     );
 
+    // "Empezar" abre el registro con la rutina que toca ya cargada.
     await tester.tap(find.text('Empezar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Registrar entrenamiento'), findsOneWidget);
+    expect(find.text('Push A'), findsOneWidget);
+    expect(find.text('Ejercicio 11'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Ver todas'));
     await tester.pumpAndSettle();
     expect(navegacion.actual, Pestana.entrenamiento);
 
@@ -353,10 +374,15 @@ void main() {
     expect(find.text('Descanso 1:00'), findsOneWidget);
     expect(find.text('S3'), findsOneWidget);
 
+    // Empezar abre el registro con la rutina precargada: 20 kg, 10 reps,
+    // 3 series por ejercicio, y las repeticiones objetivo como ayuda.
     await tester.tap(find.text('Empezar rutina'));
     await tester.pumpAndSettle();
-    expect(navegacion.actual, Pestana.entrenamiento);
-    expect(find.text('EJERCICIOS'), findsNothing);
+    expect(find.text('Registrar entrenamiento'), findsOneWidget);
+    expect(find.text('Ejercicio 13'), findsOneWidget);
+    expect(find.text('20'), findsNWidgets(3));
+    expect(find.text('Objetivo 10'), findsNWidgets(3));
+    expect(navegacion.actual, Pestana.inicio);
   });
 
   testWidgets('Rutinas sin datos muestra el estado vacío', (tester) async {
@@ -376,5 +402,338 @@ void main() {
     expect(ids, [12, 13, 11]);
     expect([for (final e in repositorio.ejerciciosGuardados[1]!) e.id], ids);
     expect(rutinas.rutinas.first.ejercicios.first.toJson()['id'], 12);
+  });
+
+  testWidgets('Registrar entrenamiento valida los campos y lo guarda', (
+    tester,
+  ) async {
+    final repositorio = RepositorioFalso(
+      catalogoGuardado: [
+        ejercicioCatalogo('press-banca', 'Press banca', 'Pecho'),
+      ],
+    );
+    await montar(tester, repositorio, EntrenamientoPage(ahora: () => hoy));
+    expect(
+      find.textContaining('Aún no registras entrenamientos.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('nuevo-entrenamiento')));
+    await tester.pumpAndSettle();
+
+    // Vacío: no guarda y marca cada campo.
+    await tester.tap(find.byKey(const Key('guardar-entrenamiento')));
+    await tester.pumpAndSettle();
+    expect(find.text('Ponle un nombre'), findsOneWidget);
+    expect(find.text('Elige un ejercicio'), findsOneWidget);
+    expect(find.text('Obligatorio'), findsNWidgets(4));
+    expect(repositorio.sesionesGuardadas, isEmpty);
+
+    // Números fuera de rango.
+    await tester.enterText(find.byKey(const Key('campo-minutos')), '0');
+    await tester.enterText(find.byKey(const Key('campo-peso-0')), '-5');
+    await tester.enterText(find.byKey(const Key('campo-reps-0')), 'diez');
+    await tester.tap(find.byKey(const Key('guardar-entrenamiento')));
+    await tester.pumpAndSettle();
+    expect(find.text('Mayor que 0'), findsOneWidget);
+    expect(find.text('No negativo'), findsOneWidget);
+    expect(find.text('Número entero'), findsOneWidget);
+
+    // Datos válidos.
+    await tester.enterText(find.byKey(const Key('campo-nombre')), 'Pecho');
+    await tester.enterText(find.byKey(const Key('campo-minutos')), '45');
+    await tester.tap(find.byKey(const Key('campo-ejercicio-0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Press banca'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('campo-peso-0')), '40');
+    await tester.enterText(find.byKey(const Key('campo-reps-0')), '10');
+    await tester.enterText(find.byKey(const Key('campo-series-0')), '3');
+    await tester.tap(find.byKey(const Key('guardar-entrenamiento')));
+    await tester.pumpAndSettle();
+
+    final guardada = repositorio.sesionesGuardadas.single;
+    expect(guardada.nombre, 'Pecho');
+    expect(guardada.duracion, const Duration(minutes: 45));
+    expect(guardada.fin, hoy);
+    expect(guardada.ejercicios.single.catalogoId, 'press-banca');
+    expect(guardada.ejercicios.single.met, 6);
+    expect(guardada.totalSeries, 3);
+    expect(guardada.volumen, 1200);
+
+    // Vuelve al historial, que ya muestra la sesión.
+    expect(find.text('Entrenamiento guardado'), findsOneWidget);
+    expect(find.text('Hoy · 45 min'), findsOneWidget);
+    expect(find.text('1.200 kg'), findsOneWidget);
+  });
+
+  testWidgets('El historial permite editar y borrar entrenamientos', (
+    tester,
+  ) async {
+    final repositorio = repositorioConDatos();
+    await montar(tester, repositorio, EntrenamientoPage(ahora: () => hoy));
+    expect(find.text('Legs A · Pierna'), findsOneWidget);
+
+    // Editar: el formulario parte con los datos de la sesión.
+    await tester.tap(find.text('Legs A · Pierna'));
+    await tester.pumpAndSettle();
+    expect(find.text('Editar entrenamiento'), findsOneWidget);
+    expect(find.text('61'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('campo-nombre')),
+      'Tren inferior',
+    );
+    await tester.tap(find.byKey(const Key('guardar-entrenamiento')));
+    await tester.pumpAndSettle();
+
+    final editada = repositorio.sesionesGuardadas.firstWhere(
+      (s) => s.inicio == DateTime(2026, 10, 13, 10),
+    );
+    expect(editada.nombre, 'Tren inferior');
+    // Sin tocar las series, se conserva el detalle serie a serie.
+    expect(editada.volumen, 2400);
+    expect(find.text('Tren inferior · Pierna'), findsOneWidget);
+    expect(find.text('Entrenamiento actualizado'), findsOneWidget);
+
+    // Borrar desde el formulario, con confirmación.
+    final antes = repositorio.sesionesGuardadas.length;
+    await tester.tap(find.text('Tren inferior · Pierna'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('borrar-sesion')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('confirmar-borrar')));
+    await tester.pumpAndSettle();
+    expect(repositorio.sesionesGuardadas.length, antes - 1);
+    expect(find.text('Tren inferior · Pierna'), findsNothing);
+
+    // Borrar deslizando una tarjeta del historial.
+    await tester.drag(find.text('Cinta · Cardio'), const Offset(-600, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('confirmar-borrar')));
+    await tester.pumpAndSettle();
+    expect(repositorio.sesionesGuardadas.length, antes - 2);
+    expect(find.text('Cinta · Cardio'), findsNothing);
+  });
+
+  test(
+    'wger: pide exerciseinfo, traduce y deja primero los con imagen',
+    () async {
+      final pedidas = <Uri>[];
+      final ejercicios = await wgerFalso(pedidas: pedidas).ejercicios();
+
+      expect(pedidas.single.path, '/api/v2/exerciseinfo/');
+      expect(pedidas.single.queryParameters['limit'], '${WgerApi.limite}');
+
+      // El 53 no tiene español ni inglés: se descarta.
+      expect([for (final e in ejercicios) e.id], [42, 31]);
+
+      final sentadilla = ejercicios.first;
+      expect(sentadilla.nombre, 'Sentadilla');
+      expect(sentadilla.enEspanol, isTrue);
+      expect(sentadilla.categoria, 'Piernas');
+      expect(sentadilla.musculos, ['Cuádriceps']);
+      expect(sentadilla.musculosSecundarios, ['Glúteos']);
+      expect(sentadilla.equipamiento, ['Barra']);
+      expect(sentadilla.imagen, 'https://wger.de/media/sentadilla.png');
+      expect(
+        sentadilla.descripcion,
+        'Con la barra en la espalda:\n• Baja.\n• Sube & respira.',
+      );
+
+      // Sin traducción al español se usa el inglés.
+      final saltos = ejercicios.last;
+      expect(saltos.nombre, 'Jumping Jacks');
+      expect(saltos.enEspanol, isFalse);
+      expect(saltos.equipamiento, ['Peso corporal']);
+      expect(saltos.imagen, isNull);
+    },
+  );
+
+  test('wger: un error HTTP se informa como WgerException', () async {
+    expect(wgerFalso(fallos: 1).ejercicios(), throwsA(isA<WgerException>()));
+  });
+
+  testWidgets('La pestaña wger muestra carga, error con reintento y datos', (
+    tester,
+  ) async {
+    final pedidas = <Uri>[];
+    await montar(
+      tester,
+      repositorioConDatos(),
+      EntrenamientoPage(ahora: () => hoy),
+      wger: wgerFalso(fallos: 1, pedidas: pedidas),
+    );
+
+    await tester.tap(find.text('wger'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('No pudimos conectar con wger. Revisa tu conexión.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('reintentar-wger')));
+    await tester.pumpAndSettle();
+    expect(find.text('Sentadilla'), findsOneWidget);
+    expect(find.text('Piernas · Barra'), findsOneWidget);
+    expect(find.text('Jumping Jacks'), findsOneWidget);
+    expect(find.text('EN'), findsOneWidget);
+    expect(find.text('Datos de wger.de (CC-BY-SA 4.0)'), findsOneWidget);
+
+    // Filtrar por categoría no vuelve a llamar a la API.
+    final chips = find
+        .descendant(
+          of: find.byType(WgerPage),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.text('Cardio'),
+      150,
+      scrollable: chips,
+    );
+    await tester.tap(find.text('Cardio'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sentadilla'), findsNothing);
+    expect(find.text('Jumping Jacks'), findsOneWidget);
+    await tester.tap(find.text('Abdominales'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sin ejercicios en esta categoría.'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Todas'),
+      -150,
+      scrollable: chips,
+    );
+    await tester.tap(find.text('Todas'));
+    await tester.pumpAndSettle();
+    expect(pedidas, hasLength(2));
+
+    // El detalle recibe el ejercicio por constructor.
+    await tester.tap(find.text('Sentadilla'));
+    await tester.pumpAndSettle();
+    expect(find.text('Principales: Cuádriceps'), findsOneWidget);
+    expect(find.text('Secundarios: Glúteos'), findsOneWidget);
+    expect(find.text('Cómo se hace'), findsOneWidget);
+    expect(
+      find.text('Con la barra en la espalda:\n• Baja.\n• Sube & respira.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Calorías suma comidas, actividades y entrenamientos del día', (
+    tester,
+  ) async {
+    final repositorio = repositorioConDatos();
+    repositorio.catalogoGuardado = [
+      ejercicioCatalogo('trote', 'Trote', 'Cardio'),
+    ];
+    final hoySolo = DateTime(2026, 10, 14);
+    repositorio.registrosCalorias[hoySolo] = RegistroCalorias(
+      fecha: hoySolo,
+      comidas: const [
+        Comida(id: 1, nombre: 'Desayuno', kcal: 500, proteina: 30),
+      ],
+    );
+    await montar(tester, repositorio, CaloriasPage(ahora: () => hoy));
+    await tester.pumpAndSettle();
+
+    String restantes() =>
+        tester.widget<Text>(find.byKey(const Key('kcal-restantes'))).data!;
+
+    // Meta 2.200 − 500 consumidas, sin quema todavía.
+    expect(find.text('Hoy · 14 oct'), findsOneWidget);
+    expect(restantes(), '1.700');
+    expect(find.text('30 / 150 g'), findsOneWidget);
+    expect(find.text('Sin actividad este día.'), findsOneWidget);
+
+    // Actividad: 30 min de trote (MET 6) con 80 kg = 240 kcal.
+    await tester.tap(find.byKey(const Key('agregar-actividad')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Trote'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('aceptar-minutos')));
+    await tester.pumpAndSettle();
+    // En la fila y en el total de quemadas.
+    expect(find.text('240 kcal'), findsNWidgets(2));
+    expect(restantes(), '1.940');
+    expect(
+      repositorio.registrosCalorias[hoySolo]!.actividades.single.minutos,
+      30,
+    );
+
+    // Comida: el formulario valida antes de guardar.
+    await tester.ensureVisible(find.byKey(const Key('agregar-comida')));
+    await tester.tap(find.byKey(const Key('agregar-comida')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('campo-proteina')), '-1');
+    await tester.tap(find.byKey(const Key('guardar-comida')));
+    await tester.pumpAndSettle();
+    expect(find.text('Obligatorio'), findsOneWidget);
+    expect(find.text('No negativo'), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('campo-kcal')), '300');
+    await tester.enterText(find.byKey(const Key('campo-proteina')), '20');
+    await tester.tap(find.byKey(const Key('guardar-comida')));
+    await tester.pumpAndSettle();
+    // A las 18:00 sugiere "Once".
+    expect(find.text('Once'), findsOneWidget);
+    expect(restantes(), '1.640');
+    expect(find.text('50 / 150 g'), findsOneWidget);
+    expect(repositorio.registrosCalorias[hoySolo]!.comidas, hasLength(2));
+
+    // Borrar el desayuno.
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('comida-1')),
+        matching: find.byIcon(Icons.delete_outline),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(restantes(), '2.140');
+    expect(repositorio.registrosCalorias[hoySolo]!.comidas, hasLength(1));
+
+    // Ayer: Legs A (61 min, MET 5 por defecto, 80 kg) suma 407 kcal.
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(const Key('dia-siguiente')))
+          .onPressed,
+      isNull,
+    );
+    await tester.tap(find.byKey(const Key('dia-anterior')));
+    await tester.pumpAndSettle();
+    expect(find.text('Ayer · 13 oct'), findsOneWidget);
+    expect(find.text('Legs A'), findsOneWidget);
+    expect(find.text('Entrenamiento · 1h 01'), findsOneWidget);
+    expect(find.text('407 kcal'), findsNWidgets(2));
+    expect(restantes(), '2.607');
+  });
+
+  testWidgets('Las metas de Calorías se guardan en el perfil', (tester) async {
+    final repositorio = repositorioConDatos();
+    await montar(tester, repositorio, CaloriasPage(ahora: () => hoy));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('ajustes-calorias')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('campo-meta')), '0');
+    await tester.enterText(find.byKey(const Key('campo-meta-grasas')), '');
+    await tester.tap(find.byKey(const Key('guardar-ajustes')));
+    await tester.pumpAndSettle();
+    expect(find.text('Mayor que 0'), findsOneWidget);
+    expect(find.text('Obligatorio'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('campo-meta')), '2500');
+    await tester.enterText(find.byKey(const Key('campo-meta-grasas')), '80');
+    await tester.tap(find.byKey(const Key('guardar-ajustes')));
+    await tester.pumpAndSettle();
+
+    expect(repositorio.perfilGuardado?.metaCalorias, 2500);
+    expect(repositorio.perfilGuardado?.metaGrasas, 80);
+    expect(find.text('Metas guardadas'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('kcal-restantes'))).data,
+      '2.500',
+    );
+    expect(find.text('0 / 80 g'), findsOneWidget);
   });
 }

@@ -65,11 +65,48 @@ class EntrenamientosProvider extends ChangeNotifier {
   }
 
   Future<void> cargar(String usuarioId) async {
-    final sesiones = [...await _repositorio.sesiones(usuarioId)]
-      ..sort((a, b) => b.inicio.compareTo(a.inicio));
-    _historial = sesiones;
-    _diasEntrenados = {for (final s in sesiones) soloDia(s.inicio)};
+    final sesiones = await _repositorio.sesiones(usuarioId);
     _usuarioId = usuarioId;
+    _asignar(sesiones);
+  }
+
+  // Toda escritura pasa por aquí: se guarda en Supabase y, si sale bien, se
+  // actualiza la lista y se avisa a Inicio, Logros, Perfil y Calorías.
+
+  Future<void> agregar(Sesion sesion) async {
+    final creada = await _repositorio.crearSesion(_idActual, sesion);
+    _asignar([creada, ..._historial]);
+  }
+
+  Future<void> editar(Sesion sesion) async {
+    final guardada = await _repositorio.actualizarSesion(_idActual, sesion);
+    _asignar([for (final s in _historial) s.id == sesion.id ? guardada : s]);
+  }
+
+  /// Sale de la lista al instante (así el gesto de deslizar no espera a la
+  /// red); si falla el borrado, vuelve a su lugar.
+  Future<void> borrar(int sesionId) async {
+    final id = _idActual;
+    final anterior = _historial;
+    _asignar([
+      for (final s in _historial)
+        if (s.id != sesionId) s,
+    ]);
+    try {
+      await _repositorio.borrarSesion(id, sesionId);
+    } catch (_) {
+      _asignar(anterior);
+      rethrow;
+    }
+  }
+
+  String get _idActual =>
+      _usuarioId ?? (throw StateError('No hay una cuenta cargada.'));
+
+  /// Ordena (más reciente primero), recalcula los días y avisa.
+  void _asignar(List<Sesion> sesiones) {
+    _historial = [...sesiones]..sort((a, b) => b.inicio.compareTo(a.inicio));
+    _diasEntrenados = {for (final s in _historial) soloDia(s.inicio)};
     notifyListeners();
   }
 
