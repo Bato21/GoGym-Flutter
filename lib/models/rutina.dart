@@ -39,6 +39,14 @@ class Ejercicio {
   String? get urlImagen =>
       imagen == null ? null : EjercicioCatalogo.urlDe(imagen!);
 
+  /// Los kilos de [carga] ("45 kg" → 45, "22,5 kg" → 22.5); 0 si no es un
+  /// peso, como "Peso corporal" o "60 s". Igual que cargaEnKg en Ionic.
+  double get cargaKg {
+    if (!carga.toLowerCase().contains('kg')) return 0;
+    final numero = RegExp(r'\d+([.,]\d+)?').firstMatch(carga)?.group(0);
+    return double.tryParse(numero?.replaceAll(',', '.') ?? '') ?? 0;
+  }
+
   /// "4 × 8 · 45 kg", "3 × 10 · Peso corporal" o "3 series · 60 s".
   String get resumen {
     final volumen = repeticiones > 0

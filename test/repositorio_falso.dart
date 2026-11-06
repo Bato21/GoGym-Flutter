@@ -15,7 +15,9 @@ class RepositorioFalso implements DatosRepositorio {
 
   Perfil? perfilGuardado;
   final List<Rutina> rutinasGuardadas;
-  final List<Sesion> sesionesGuardadas;
+
+  /// Cambia con crearSesion, actualizarSesion y borrarSesion.
+  List<Sesion> sesionesGuardadas;
   final List<EjercicioCatalogo> catalogoGuardado;
 
   @override
@@ -61,9 +63,47 @@ class RepositorioFalso implements DatosRepositorio {
   Future<List<Sesion>> sesiones(String usuarioId) async => sesionesGuardadas;
 
   @override
+  Future<Sesion> crearSesion(String usuarioId, Sesion sesion) async {
+    sesionesGuardadas = [...sesionesGuardadas, sesion];
+    return sesion;
+  }
+
+  @override
+  Future<Sesion> actualizarSesion(String usuarioId, Sesion sesion) async {
+    sesionesGuardadas = [
+      for (final s in sesionesGuardadas) s.id == sesion.id ? sesion : s,
+    ];
+    return sesion;
+  }
+
+  @override
+  Future<void> borrarSesion(String usuarioId, int sesionId) async {
+    sesionesGuardadas = [
+      for (final s in sesionesGuardadas)
+        if (s.id != sesionId) s,
+    ];
+  }
+
+  @override
   Future<List<EjercicioCatalogo>> catalogoEjercicios() async =>
       catalogoGuardado;
 }
+
+EjercicioCatalogo ejercicioCatalogo(String id, String nombre, String grupo) =>
+    EjercicioCatalogo(
+      id: id,
+      nombre: nombre,
+      grupo: grupo,
+      met: 6,
+      categoria: 'Fuerza',
+      equipo: 'Barra',
+      musculos: const [],
+      nivel: 'Principiante',
+      descripcion: '',
+      musculosSecundarios: const [],
+      instrucciones: const [],
+      consejos: const [],
+    );
 
 Ejercicio ejercicio(int id, String grupo) => Ejercicio(
   id: id,

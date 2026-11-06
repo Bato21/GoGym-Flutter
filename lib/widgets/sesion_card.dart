@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../models/sesion.dart';
+import '../utils/fechas.dart';
+import '../utils/formato.dart';
 import 'tarjeta.dart';
 
 /// Una sesión de la lista: icono, título, detalle y una métrica a la derecha.
@@ -12,6 +15,36 @@ class SesionCard extends StatelessWidget {
     required this.metrica,
     this.onTap,
   });
+
+  /// Tarjeta de un entrenamiento terminado, igual en Inicio y en el historial
+  /// de Entrenamiento. Con pesas muestra el volumen; sin pesas, la quema
+  /// estimada si se conoce el peso del usuario.
+  factory SesionCard.desde(
+    Sesion sesion, {
+    Key? key,
+    required DateTime hoy,
+    double? pesoKg,
+    VoidCallback? onTap,
+  }) {
+    final grupo = sesion.grupoPrincipal;
+    final volumen = sesion.volumen;
+    final conPesas = volumen > 0;
+    return SesionCard(
+      key: key,
+      icono: conPesas ? Icons.fitness_center : Icons.directions_run,
+      titulo: grupo == null || sesion.nombre.contains(grupo)
+          ? sesion.nombre
+          : '${sesion.nombre} · $grupo',
+      detalle:
+          '${diaRelativo(sesion.inicio, hoy)} · ${formatearTiempo(sesion.duracion)}',
+      metrica: conPesas
+          ? '${formatearMiles(volumen)} kg'
+          : pesoKg == null
+          ? '${sesion.totalSeries} series'
+          : '${formatearMiles(sesion.kcalEstimadas(pesoKg))} kcal',
+      onTap: onTap,
+    );
+  }
 
   final IconData icono;
   final String titulo;
@@ -46,14 +79,16 @@ class SesionCard extends StatelessWidget {
                   titulo,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: tema.textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                  style: tema.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   detalle,
-                  style: tema.textTheme.bodySmall
-                      ?.copyWith(color: colores.onSurfaceVariant),
+                  style: tema.textTheme.bodySmall?.copyWith(
+                    color: colores.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -61,8 +96,9 @@ class SesionCard extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             metrica,
-            style: tema.textTheme.bodySmall
-                ?.copyWith(color: colores.onSurfaceVariant),
+            style: tema.textTheme.bodySmall?.copyWith(
+              color: colores.onSurfaceVariant,
+            ),
           ),
         ],
       ),
