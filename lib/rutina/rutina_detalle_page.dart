@@ -3,8 +3,8 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../entrenamiento/registrar_entrenamiento_page.dart';
 import '../models/rutina.dart';
-import '../providers/navegacion_provider.dart';
 import '../providers/rutinas_provider.dart';
 import '../widgets/aparecer.dart';
 import '../widgets/pressable_scale.dart';
@@ -57,10 +57,20 @@ class _RutinaDetallePageState extends State<RutinaDetallePage> {
     }
   }
 
+  /// Abre el registro con los ejercicios de la rutina ya cargados. Reemplaza
+  /// al detalle: al guardar se vuelve directo a la lista de rutinas.
   void _empezar() {
-    context.read<NavegacionProvider>().irA(Pestana.entrenamiento);
-    Navigator.of(context).pop();
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => RegistrarEntrenamientoPage(rutina: _rutinaActual),
+      ),
+    );
   }
+
+  Rutina get _rutinaActual => context
+      .read<RutinasProvider>()
+      .rutinas
+      .firstWhere((r) => r.id == widget.rutina.id, orElse: () => widget.rutina);
 
   @override
   Widget build(BuildContext context) {

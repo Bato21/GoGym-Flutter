@@ -34,6 +34,14 @@ abstract class DatosRepositorio {
 
   /// Entrenamientos terminados, el más reciente primero.
   Future<List<Sesion>> sesiones(String usuarioId);
+
+  /// Guarda un entrenamiento nuevo y devuelve la fila creada.
+  Future<Sesion> crearSesion(String usuarioId, Sesion sesion);
+
+  /// Reemplaza un entrenamiento existente (mismo id) y devuelve la fila.
+  Future<Sesion> actualizarSesion(String usuarioId, Sesion sesion);
+
+  Future<void> borrarSesion(String usuarioId, int sesionId);
 }
 
 /// Tablas `perfiles`, `rutinas` y `sesiones` del proyecto Supabase compartido
@@ -106,6 +114,39 @@ class SupabaseDatosRepositorio implements DatosRepositorio {
         .eq('user_id', usuarioId)
         .order('inicio', ascending: false);
     return filas.map(Sesion.fromFila).toList();
+  }
+
+  // La clave de `sesiones` es (user_id, id) y la tabla no genera el id: lo
+  // pone la app, igual que en Ionic. RLS exige auth.uid() = user_id.
+  @override
+  Future<Sesion> crearSesion(String usuarioId, Sesion sesion) async {
+    final fila = await _db
+        .from('sesiones')
+        .insert({...sesion.toFila(), 'user_id': usuarioId})
+        .select()
+        .single();
+    return Sesion.fromFila(fila);
+  }
+
+  @override
+  Future<Sesion> actualizarSesion(String usuarioId, Sesion sesion) async {
+    final fila = await _db
+        .from('sesiones')
+        .update(sesion.toFila()..remove('id'))
+        .eq('user_id', usuarioId)
+        .eq('id', sesion.id)
+        .select()
+        .single();
+    return Sesion.fromFila(fila);
+  }
+
+  @override
+  Future<void> borrarSesion(String usuarioId, int sesionId) async {
+    await _db
+        .from('sesiones')
+        .delete()
+        .eq('user_id', usuarioId)
+        .eq('id', sesionId);
   }
 
   @override

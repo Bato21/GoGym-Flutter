@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../entrenamiento/registrar_entrenamiento_page.dart';
 import '../models/perfil.dart';
 import '../models/rutina.dart';
-import '../models/sesion.dart';
 import '../providers/entrenamientos_provider.dart';
 import '../providers/navegacion_provider.dart';
 import '../providers/perfil_provider.dart';
@@ -181,6 +181,11 @@ class _InicioPageState extends State<InicioPage> {
                     entrenoHoy: entrenamientos.entrenoEl(hoy),
                     hoy: hoy,
                     navegacion: navegacion,
+                    onEmpezar: (rutina) => abrirRegistro(
+                      context,
+                      rutina: rutina,
+                      ahora: widget.ahora,
+                    ),
                   ),
                 ),
               ),
@@ -204,7 +209,16 @@ class _InicioPageState extends State<InicioPage> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: PressableScale(
-                        child: _sesionCard(sesion, perfil, hoy, navegacion),
+                        child: SesionCard.desde(
+                          sesion,
+                          hoy: hoy,
+                          pesoKg: perfil?.pesoKg,
+                          onTap: () => abrirRegistro(
+                            context,
+                            existente: sesion,
+                            ahora: widget.ahora,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -253,6 +267,7 @@ class _InicioPageState extends State<InicioPage> {
     required bool entrenoHoy,
     required DateTime hoy,
     required NavegacionProvider navegacion,
+    required void Function(Rutina rutina) onEmpezar,
   }) {
     if (rutina == null) {
       return RutinaHoyCard(
@@ -275,7 +290,7 @@ class _InicioPageState extends State<InicioPage> {
         if (rutina.nivel.isNotEmpty) rutina.nivel,
       ].join(' · '),
       textoBoton: 'Empezar',
-      onPressed: () => navegacion.irA(Pestana.entrenamiento),
+      onPressed: () => onEmpezar(rutina),
     );
   }
 
@@ -304,31 +319,6 @@ class _InicioPageState extends State<InicioPage> {
             ...grupos.skip(1).map((g) => g.toLowerCase()),
           ].join(' y ');
     return detalle.isEmpty ? rutina.nombre : '${rutina.nombre} · $detalle';
-  }
-
-  static Widget _sesionCard(
-    Sesion sesion,
-    Perfil? perfil,
-    DateTime hoy,
-    NavegacionProvider navegacion,
-  ) {
-    final grupo = sesion.grupoPrincipal;
-    final volumen = sesion.volumen;
-    final conPesas = volumen > 0;
-    return SesionCard(
-      icono: conPesas ? Icons.fitness_center : Icons.directions_run,
-      titulo: grupo == null || sesion.nombre.contains(grupo)
-          ? sesion.nombre
-          : '${sesion.nombre} · $grupo',
-      detalle:
-          '${diaRelativo(sesion.inicio, hoy)} · ${formatearTiempo(sesion.duracion)}',
-      metrica: conPesas
-          ? '${formatearMiles(volumen)} kg'
-          : perfil == null
-          ? '${sesion.totalSeries} series'
-          : '${formatearMiles(sesion.kcalEstimadas(perfil.pesoKg))} kcal',
-      onTap: () => navegacion.irA(Pestana.entrenamiento),
-    );
   }
 }
 
