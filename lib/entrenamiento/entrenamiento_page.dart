@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../biblioteca/biblioteca_page.dart';
+import '../biblioteca/wger_page.dart';
 import '../providers/entrenamientos_provider.dart';
 import '../providers/perfil_provider.dart';
 import '../widgets/sesion_card.dart';
 import 'registrar_entrenamiento_page.dart';
 
-/// Pestaña Entrenamiento: el historial (crear, editar y borrar sesiones) y la
-/// biblioteca de ejercicios.
+/// Pestaña Entrenamiento: el historial (crear, editar y borrar sesiones), la
+/// biblioteca de ejercicios (catálogo de Supabase) y los ejercicios de la API
+/// de wger.
 class EntrenamientoPage extends StatelessWidget {
   const EntrenamientoPage({super.key, this.ahora = DateTime.now});
 
@@ -18,7 +20,7 @@ class EntrenamientoPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Entrenamiento'),
@@ -26,6 +28,7 @@ class EntrenamientoPage extends StatelessWidget {
             tabs: [
               Tab(text: 'Historial'),
               Tab(text: 'Biblioteca'),
+              Tab(text: 'wger'),
             ],
           ),
         ),
@@ -33,6 +36,7 @@ class EntrenamientoPage extends StatelessWidget {
           children: [
             _Historial(ahora: ahora),
             const BibliotecaPage(),
+            const WgerPage(),
           ],
         ),
         floatingActionButton: FloatingActionButton.extended(

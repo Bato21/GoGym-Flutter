@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'auth/auth_gate.dart';
 import 'config/env.dart';
 import 'data/datos_repositorio.dart';
+import 'data/wger_api.dart';
 import 'providers/entrenamientos_provider.dart';
 import 'providers/navegacion_provider.dart';
 import 'providers/perfil_provider.dart';
@@ -28,15 +29,22 @@ Future<void> main() async {
   final cliente = Supabase.instance.client;
   runApp(GoGymApp(
     repositorio: SupabaseDatosRepositorio(cliente),
+    wger: WgerApi(),
     home: AuthGate(auth: cliente.auth),
   ));
 }
 
 /// Registra los providers compartidos sobre toda la app.
 class GoGymApp extends StatelessWidget {
-  const GoGymApp({super.key, required this.repositorio, required this.home});
+  const GoGymApp({
+    super.key,
+    required this.repositorio,
+    required this.wger,
+    required this.home,
+  });
 
   final DatosRepositorio repositorio;
+  final WgerApi wger;
   final Widget home;
 
   @override
@@ -44,6 +52,7 @@ class GoGymApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<DatosRepositorio>.value(value: repositorio),
+        Provider<WgerApi>.value(value: wger),
         ChangeNotifierProvider(create: (_) => PerfilProvider(repositorio)),
         ChangeNotifierProvider(create: (_) => RutinasProvider(repositorio)),
         ChangeNotifierProvider(
