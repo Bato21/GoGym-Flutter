@@ -11,6 +11,9 @@ class Perfil {
     required this.horaEntrenamiento,
     required this.metaCalorias,
     this.rutinaFavoritaId,
+    this.metaProteina = 150,
+    this.metaCarbohidratos = 260,
+    this.metaGrasas = 70,
   });
 
   final String nombre;
@@ -28,6 +31,11 @@ class Perfil {
   final String horaEntrenamiento;
   final int metaCalorias;
 
+  /// Metas diarias de macronutrientes, en gramos. Las usa Calorías.
+  final int metaProteina;
+  final int metaCarbohidratos;
+  final int metaGrasas;
+
   Perfil copyWith({
     String? nombre,
     String? apellido,
@@ -38,6 +46,9 @@ class Perfil {
     List<int>? diasEntrenamiento,
     String? horaEntrenamiento,
     int? metaCalorias,
+    int? metaProteina,
+    int? metaCarbohidratos,
+    int? metaGrasas,
   }) =>
       Perfil(
         nombre: nombre ?? this.nombre,
@@ -50,6 +61,9 @@ class Perfil {
         diasEntrenamiento: diasEntrenamiento ?? this.diasEntrenamiento,
         horaEntrenamiento: horaEntrenamiento ?? this.horaEntrenamiento,
         metaCalorias: metaCalorias ?? this.metaCalorias,
+        metaProteina: metaProteina ?? this.metaProteina,
+        metaCarbohidratos: metaCarbohidratos ?? this.metaCarbohidratos,
+        metaGrasas: metaGrasas ?? this.metaGrasas,
       );
 
   /// Columnas editables de la fila `perfiles`.
@@ -62,6 +76,9 @@ class Perfil {
         'dias_entrenamiento': diasEntrenamiento,
         'hora_entrenamiento': horaEntrenamiento,
         'meta_calorias': metaCalorias,
+        'meta_proteina': metaProteina,
+        'meta_carbohidratos': metaCarbohidratos,
+        'meta_grasas': metaGrasas,
       };
 
   factory Perfil.fromFila(Map<String, dynamic> fila) => Perfil(
@@ -78,6 +95,9 @@ class Perfil {
         horaEntrenamiento:
             (fila['hora_entrenamiento'] as String? ?? '').split(':').take(2).join(':'),
         metaCalorias: (fila['meta_calorias'] as num).toInt(),
+        metaProteina: (fila['meta_proteina'] as num?)?.toInt() ?? 150,
+        metaCarbohidratos: (fila['meta_carbohidratos'] as num?)?.toInt() ?? 260,
+        metaGrasas: (fila['meta_grasas'] as num?)?.toInt() ?? 70,
       );
 
   /// "VR" para el avatar; vacío si todavía no hay nombre.

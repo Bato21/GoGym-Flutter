@@ -9,6 +9,9 @@ const inicialesSemana = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 /// La fecha a medianoche. Sirve de clave para agrupar por día.
 DateTime soloDia(DateTime fecha) => DateTime(fecha.year, fecha.month, fecha.day);
 
+/// "2026-10-14": formato de las columnas date de Postgres.
+String claveFecha(DateTime fecha) => DateFormat('yyyy-MM-dd').format(fecha);
+
 /// Índice del día con la semana empezando en lunes (0 = lunes … 6 = domingo).
 int indiceDia(DateTime fecha) => fecha.weekday - 1;
 

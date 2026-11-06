@@ -7,6 +7,7 @@ import 'auth/auth_gate.dart';
 import 'config/env.dart';
 import 'data/datos_repositorio.dart';
 import 'data/wger_api.dart';
+import 'providers/calorias_provider.dart';
 import 'providers/entrenamientos_provider.dart';
 import 'providers/navegacion_provider.dart';
 import 'providers/perfil_provider.dart';
@@ -57,6 +58,7 @@ class GoGymApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => RutinasProvider(repositorio)),
         ChangeNotifierProvider(
             create: (_) => EntrenamientosProvider(repositorio)),
+        ChangeNotifierProvider(create: (_) => CaloriasProvider(repositorio)),
         ChangeNotifierProvider(create: (_) => NavegacionProvider()),
       ],
       child: MaterialApp(
