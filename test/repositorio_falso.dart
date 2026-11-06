@@ -1,5 +1,6 @@
 import 'package:go_gym/data/datos_repositorio.dart';
 import 'package:go_gym/models/perfil.dart';
+import 'package:go_gym/models/registro_calorias.dart';
 import 'package:go_gym/models/rutina.dart';
 import 'package:go_gym/models/sesion.dart';
 import 'package:go_gym/models/ejercicio_catalogo.dart';
@@ -18,7 +19,7 @@ class RepositorioFalso implements DatosRepositorio {
 
   /// Cambia con crearSesion, actualizarSesion y borrarSesion.
   List<Sesion> sesionesGuardadas;
-  final List<EjercicioCatalogo> catalogoGuardado;
+  List<EjercicioCatalogo> catalogoGuardado;
 
   @override
   Future<Perfil?> perfil(String usuarioId) async => perfilGuardado;
@@ -83,6 +84,21 @@ class RepositorioFalso implements DatosRepositorio {
         if (s.id != sesionId) s,
     ];
   }
+
+  /// Registros de calorías por día (a medianoche).
+  final registrosCalorias = <DateTime, RegistroCalorias>{};
+
+  @override
+  Future<RegistroCalorias?> registroCalorias(
+    String usuarioId,
+    DateTime fecha,
+  ) async => registrosCalorias[fecha];
+
+  @override
+  Future<RegistroCalorias> guardarRegistroCalorias(
+    String usuarioId,
+    RegistroCalorias registro,
+  ) async => registrosCalorias[registro.fecha] = registro;
 
   @override
   Future<List<EjercicioCatalogo>> catalogoEjercicios() async =>

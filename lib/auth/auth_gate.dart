@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../login/login_page.dart';
+import '../providers/calorias_provider.dart';
 import '../providers/entrenamientos_provider.dart';
 import '../providers/navegacion_provider.dart';
 import '../providers/perfil_provider.dart';
@@ -65,6 +66,7 @@ class _AuthGateState extends State<AuthGate> {
       ),
       context.read<RutinasProvider>().cargar(usuario.id),
       context.read<EntrenamientosProvider>().cargar(usuario.id),
+      context.read<CaloriasProvider>().cargar(usuario.id),
     ]);
   }
 
@@ -72,6 +74,7 @@ class _AuthGateState extends State<AuthGate> {
     context.read<PerfilProvider>().limpiar();
     context.read<RutinasProvider>().limpiar();
     context.read<EntrenamientosProvider>().limpiar();
+    context.read<CaloriasProvider>().limpiar();
     context.read<NavegacionProvider>().irA(Pestana.inicio);
   }
 

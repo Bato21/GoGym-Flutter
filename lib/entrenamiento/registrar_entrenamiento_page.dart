@@ -6,7 +6,8 @@ import '../models/ejercicio_catalogo.dart';
 import '../models/rutina.dart';
 import '../models/sesion.dart';
 import '../providers/entrenamientos_provider.dart';
-import '../widgets/ejercicio_card.dart';
+import '../utils/validadores.dart';
+import '../widgets/selector_ejercicio.dart';
 import '../widgets/tarjeta.dart';
 
 /// Abre el formulario. Sin argumentos registra un entrenamiento libre; con
@@ -138,12 +139,7 @@ class _RegistrarEntrenamientoPageState
 
   Future<void> _elegirEjercicio(_Borrador borrador) async {
     _catalogo ??= context.read<DatosRepositorio>().catalogoEjercicios();
-    final elegido = await showModalBottomSheet<EjercicioCatalogo>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => _SelectorEjercicio(catalogo: _catalogo!),
-    );
+    final elegido = await elegirEjercicio(context, _catalogo!);
     if (elegido != null) setState(() => borrador.elegir(elegido));
   }
 
@@ -324,40 +320,6 @@ class _RegistrarEntrenamientoPageState
     );
   }
 }
-
-// Validadores del formulario. Son funciones sueltas para poder probarlas.
-
-/// Entero mayor que 0, como repeticiones o series.
-String? validarEnteroPositivo(String? valor) {
-  final texto = (valor ?? '').trim();
-  if (texto.isEmpty) return 'Obligatorio';
-  final numero = int.tryParse(texto);
-  if (numero == null) return 'Número entero';
-  if (numero <= 0) return 'Mayor que 0';
-  return null;
-}
-
-/// Minutos entre 1 y 600 (10 horas).
-String? validarMinutos(String? valor) {
-  final error = validarEnteroPositivo(valor);
-  if (error != null) return error;
-  return int.parse(valor!.trim()) > 600 ? 'Máximo 600' : null;
-}
-
-/// Kilos con decimales (acepta coma). 0 vale para peso corporal.
-String? validarPeso(String? valor) {
-  final texto = (valor ?? '').trim();
-  if (texto.isEmpty) return 'Obligatorio';
-  final numero = leerDecimal(texto);
-  if (numero == null) return 'Número';
-  if (numero < 0) return 'No negativo';
-  if (numero > 1000) return 'Máximo 1000';
-  return null;
-}
-
-/// "22,5" o "22.5" → 22.5; null si no es un número.
-double? leerDecimal(String texto) =>
-    double.tryParse(texto.trim().replaceAll(',', '.'));
 
 /// 45.0 → "45", 22.5 → "22.5".
 String _textoKg(double kg) =>
@@ -563,84 +525,6 @@ class _FilaEjercicio extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Hoja inferior con el catálogo y un buscador. Devuelve el ejercicio tocado.
-class _SelectorEjercicio extends StatefulWidget {
-  const _SelectorEjercicio({required this.catalogo});
-
-  final Future<List<EjercicioCatalogo>> catalogo;
-
-  @override
-  State<_SelectorEjercicio> createState() => _SelectorEjercicioState();
-}
-
-class _SelectorEjercicioState extends State<_SelectorEjercicio> {
-  String _busqueda = '';
-
-  @override
-  Widget build(BuildContext context) {
-    return FractionallySizedBox(
-      heightFactor: 0.85,
-      child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: TextField(
-                key: const Key('buscar-en-selector'),
-                autofocus: false,
-                decoration: const InputDecoration(
-                  hintText: 'Buscar ejercicio',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                ),
-                onChanged: (texto) =>
-                    setState(() => _busqueda = texto.trim().toLowerCase()),
-              ),
-            ),
-            Expanded(
-              child: FutureBuilder<List<EjercicioCatalogo>>(
-                future: widget.catalogo,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return const Center(
-                      child: Text('No se pudo cargar el catálogo.'),
-                    );
-                  }
-                  final ejercicios = snapshot.requireData
-                      .where(
-                        (e) =>
-                            _busqueda.isEmpty ||
-                            e.nombre.toLowerCase().contains(_busqueda) ||
-                            e.grupo.toLowerCase().contains(_busqueda),
-                      )
-                      .toList();
-                  if (ejercicios.isEmpty) {
-                    return const Center(child: Text('Sin resultados.'));
-                  }
-                  return ListView.builder(
-                    itemCount: ejercicios.length,
-                    itemBuilder: (context, i) => EjercicioCard(
-                      ejercicio: ejercicios[i],
-                      onTap: () => Navigator.of(context).pop(ejercicios[i]),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

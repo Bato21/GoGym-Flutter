@@ -1,9 +1,11 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/perfil.dart';
+import '../models/registro_calorias.dart';
 import '../models/rutina.dart';
 import '../models/sesion.dart';
 import '../models/ejercicio_catalogo.dart';
+import '../utils/fechas.dart';
 
 /// Acceso a los datos de la cuenta. Los providers dependen de esta interfaz y no
 /// de Supabase, así las pruebas usan un repositorio falso.
@@ -42,6 +44,15 @@ abstract class DatosRepositorio {
   Future<Sesion> actualizarSesion(String usuarioId, Sesion sesion);
 
   Future<void> borrarSesion(String usuarioId, int sesionId);
+
+  /// Comidas y actividades de un día; null si ese día no tiene registro.
+  Future<RegistroCalorias?> registroCalorias(String usuarioId, DateTime fecha);
+
+  /// Crea o reemplaza el registro de su día y devuelve la fila.
+  Future<RegistroCalorias> guardarRegistroCalorias(
+    String usuarioId,
+    RegistroCalorias registro,
+  );
 }
 
 /// Tablas `perfiles`, `rutinas` y `sesiones` del proyecto Supabase compartido
@@ -147,6 +158,38 @@ class SupabaseDatosRepositorio implements DatosRepositorio {
         .delete()
         .eq('user_id', usuarioId)
         .eq('id', sesionId);
+  }
+
+  @override
+  Future<RegistroCalorias?> registroCalorias(
+    String usuarioId,
+    DateTime fecha,
+  ) async {
+    final fila = await _db
+        .from('registros_calorias')
+        .select()
+        .eq('user_id', usuarioId)
+        .eq('fecha', claveFecha(fecha))
+        .maybeSingle();
+    return fila == null ? null : RegistroCalorias.fromFila(fila);
+  }
+
+  // Una fila por usuario y día: upsert la crea la primera vez y después la
+  // reemplaza. RLS exige auth.uid() = user_id.
+  @override
+  Future<RegistroCalorias> guardarRegistroCalorias(
+    String usuarioId,
+    RegistroCalorias registro,
+  ) async {
+    final fila = await _db
+        .from('registros_calorias')
+        .upsert({
+          ...registro.toFila(),
+          'user_id': usuarioId,
+        }, onConflict: 'user_id,fecha')
+        .select()
+        .single();
+    return RegistroCalorias.fromFila(fila);
   }
 
   @override

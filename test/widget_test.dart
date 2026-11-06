@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_gym/biblioteca/wger_page.dart';
+import 'package:go_gym/calorias/calorias_page.dart';
 import 'package:go_gym/data/datos_repositorio.dart';
 import 'package:go_gym/data/wger_api.dart';
 import 'package:go_gym/entrenamiento/entrenamiento_page.dart';
 import 'package:go_gym/inicio/inicio_page.dart';
 import 'package:go_gym/logros/logros_page.dart';
 import 'package:go_gym/models/perfil.dart';
+import 'package:go_gym/models/registro_calorias.dart';
 import 'package:go_gym/models/rutina.dart';
 import 'package:go_gym/models/sesion.dart';
+import 'package:go_gym/providers/calorias_provider.dart';
 import 'package:go_gym/providers/entrenamientos_provider.dart';
 import 'package:go_gym/providers/navegacion_provider.dart';
 import 'package:go_gym/providers/perfil_provider.dart';
@@ -110,11 +113,13 @@ Future<NavegacionProvider> montar(
   final perfil = PerfilProvider(repositorio);
   final rutinas = RutinasProvider(repositorio);
   final entrenamientos = EntrenamientosProvider(repositorio);
+  final calorias = CaloriasProvider(repositorio);
   final navegacion = NavegacionProvider();
   await Future.wait([
     perfil.cargar('u1', nombre: 'Nuevo'),
     rutinas.cargar('u1'),
     entrenamientos.cargar('u1'),
+    calorias.cargar('u1', hoy: hoy),
   ]);
 
   await tester.pumpWidget(
@@ -125,6 +130,7 @@ Future<NavegacionProvider> montar(
         ChangeNotifierProvider.value(value: perfil),
         ChangeNotifierProvider.value(value: rutinas),
         ChangeNotifierProvider.value(value: entrenamientos),
+        ChangeNotifierProvider.value(value: calorias),
         ChangeNotifierProvider.value(value: navegacion),
       ],
       child: MaterialApp(home: hijo),
@@ -613,5 +619,121 @@ void main() {
       find.text('Con la barra en la espalda:\n• Baja.\n• Sube & respira.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('Calorías suma comidas, actividades y entrenamientos del día', (
+    tester,
+  ) async {
+    final repositorio = repositorioConDatos();
+    repositorio.catalogoGuardado = [
+      ejercicioCatalogo('trote', 'Trote', 'Cardio'),
+    ];
+    final hoySolo = DateTime(2026, 10, 14);
+    repositorio.registrosCalorias[hoySolo] = RegistroCalorias(
+      fecha: hoySolo,
+      comidas: const [
+        Comida(id: 1, nombre: 'Desayuno', kcal: 500, proteina: 30),
+      ],
+    );
+    await montar(tester, repositorio, CaloriasPage(ahora: () => hoy));
+    await tester.pumpAndSettle();
+
+    String restantes() =>
+        tester.widget<Text>(find.byKey(const Key('kcal-restantes'))).data!;
+
+    // Meta 2.200 − 500 consumidas, sin quema todavía.
+    expect(find.text('Hoy · 14 oct'), findsOneWidget);
+    expect(restantes(), '1.700');
+    expect(find.text('30 / 150 g'), findsOneWidget);
+    expect(find.text('Sin actividad este día.'), findsOneWidget);
+
+    // Actividad: 30 min de trote (MET 6) con 80 kg = 240 kcal.
+    await tester.tap(find.byKey(const Key('agregar-actividad')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Trote'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('aceptar-minutos')));
+    await tester.pumpAndSettle();
+    // En la fila y en el total de quemadas.
+    expect(find.text('240 kcal'), findsNWidgets(2));
+    expect(restantes(), '1.940');
+    expect(
+      repositorio.registrosCalorias[hoySolo]!.actividades.single.minutos,
+      30,
+    );
+
+    // Comida: el formulario valida antes de guardar.
+    await tester.ensureVisible(find.byKey(const Key('agregar-comida')));
+    await tester.tap(find.byKey(const Key('agregar-comida')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('campo-proteina')), '-1');
+    await tester.tap(find.byKey(const Key('guardar-comida')));
+    await tester.pumpAndSettle();
+    expect(find.text('Obligatorio'), findsOneWidget);
+    expect(find.text('No negativo'), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('campo-kcal')), '300');
+    await tester.enterText(find.byKey(const Key('campo-proteina')), '20');
+    await tester.tap(find.byKey(const Key('guardar-comida')));
+    await tester.pumpAndSettle();
+    // A las 18:00 sugiere "Once".
+    expect(find.text('Once'), findsOneWidget);
+    expect(restantes(), '1.640');
+    expect(find.text('50 / 150 g'), findsOneWidget);
+    expect(repositorio.registrosCalorias[hoySolo]!.comidas, hasLength(2));
+
+    // Borrar el desayuno.
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('comida-1')),
+        matching: find.byIcon(Icons.delete_outline),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(restantes(), '2.140');
+    expect(repositorio.registrosCalorias[hoySolo]!.comidas, hasLength(1));
+
+    // Ayer: Legs A (61 min, MET 5 por defecto, 80 kg) suma 407 kcal.
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(const Key('dia-siguiente')))
+          .onPressed,
+      isNull,
+    );
+    await tester.tap(find.byKey(const Key('dia-anterior')));
+    await tester.pumpAndSettle();
+    expect(find.text('Ayer · 13 oct'), findsOneWidget);
+    expect(find.text('Legs A'), findsOneWidget);
+    expect(find.text('Entrenamiento · 1h 01'), findsOneWidget);
+    expect(find.text('407 kcal'), findsNWidgets(2));
+    expect(restantes(), '2.607');
+  });
+
+  testWidgets('Las metas de Calorías se guardan en el perfil', (tester) async {
+    final repositorio = repositorioConDatos();
+    await montar(tester, repositorio, CaloriasPage(ahora: () => hoy));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('ajustes-calorias')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('campo-meta')), '0');
+    await tester.enterText(find.byKey(const Key('campo-meta-grasas')), '');
+    await tester.tap(find.byKey(const Key('guardar-ajustes')));
+    await tester.pumpAndSettle();
+    expect(find.text('Mayor que 0'), findsOneWidget);
+    expect(find.text('Obligatorio'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('campo-meta')), '2500');
+    await tester.enterText(find.byKey(const Key('campo-meta-grasas')), '80');
+    await tester.tap(find.byKey(const Key('guardar-ajustes')));
+    await tester.pumpAndSettle();
+
+    expect(repositorio.perfilGuardado?.metaCalorias, 2500);
+    expect(repositorio.perfilGuardado?.metaGrasas, 80);
+    expect(find.text('Metas guardadas'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('kcal-restantes'))).data,
+      '2.500',
+    );
+    expect(find.text('0 / 80 g'), findsOneWidget);
   });
 }
