@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_gym/biblioteca/wger_page.dart';
 import 'package:go_gym/data/datos_repositorio.dart';
+import 'package:go_gym/data/wger_api.dart';
 import 'package:go_gym/entrenamiento/entrenamiento_page.dart';
 import 'package:go_gym/inicio/inicio_page.dart';
 import 'package:go_gym/logros/logros_page.dart';
@@ -18,6 +20,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'repositorio_falso.dart';
+import 'wger_falso.dart';
 
 /// Miércoles 14 de octubre de 2026, 18:00.
 final hoy = DateTime(2026, 10, 14, 18);
@@ -97,8 +100,9 @@ RepositorioFalso repositorioConDatos() => RepositorioFalso(
 Future<NavegacionProvider> montar(
   WidgetTester tester,
   RepositorioFalso repositorio,
-  Widget hijo,
-) async {
+  Widget hijo, {
+  WgerApi? wger,
+}) async {
   tester.view.physicalSize = const Size(1200, 3000);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
@@ -117,6 +121,7 @@ Future<NavegacionProvider> montar(
     MultiProvider(
       providers: [
         Provider<DatosRepositorio>.value(value: repositorio),
+        Provider<WgerApi>.value(value: wger ?? wgerFalso()),
         ChangeNotifierProvider.value(value: perfil),
         ChangeNotifierProvider.value(value: rutinas),
         ChangeNotifierProvider.value(value: entrenamientos),
@@ -502,5 +507,111 @@ void main() {
     await tester.pumpAndSettle();
     expect(repositorio.sesionesGuardadas.length, antes - 2);
     expect(find.text('Cinta · Cardio'), findsNothing);
+  });
+
+  test(
+    'wger: pide exerciseinfo, traduce y deja primero los con imagen',
+    () async {
+      final pedidas = <Uri>[];
+      final ejercicios = await wgerFalso(pedidas: pedidas).ejercicios();
+
+      expect(pedidas.single.path, '/api/v2/exerciseinfo/');
+      expect(pedidas.single.queryParameters['limit'], '${WgerApi.limite}');
+
+      // El 53 no tiene español ni inglés: se descarta.
+      expect([for (final e in ejercicios) e.id], [42, 31]);
+
+      final sentadilla = ejercicios.first;
+      expect(sentadilla.nombre, 'Sentadilla');
+      expect(sentadilla.enEspanol, isTrue);
+      expect(sentadilla.categoria, 'Piernas');
+      expect(sentadilla.musculos, ['Cuádriceps']);
+      expect(sentadilla.musculosSecundarios, ['Glúteos']);
+      expect(sentadilla.equipamiento, ['Barra']);
+      expect(sentadilla.imagen, 'https://wger.de/media/sentadilla.png');
+      expect(
+        sentadilla.descripcion,
+        'Con la barra en la espalda:\n• Baja.\n• Sube & respira.',
+      );
+
+      // Sin traducción al español se usa el inglés.
+      final saltos = ejercicios.last;
+      expect(saltos.nombre, 'Jumping Jacks');
+      expect(saltos.enEspanol, isFalse);
+      expect(saltos.equipamiento, ['Peso corporal']);
+      expect(saltos.imagen, isNull);
+    },
+  );
+
+  test('wger: un error HTTP se informa como WgerException', () async {
+    expect(wgerFalso(fallos: 1).ejercicios(), throwsA(isA<WgerException>()));
+  });
+
+  testWidgets('La pestaña wger muestra carga, error con reintento y datos', (
+    tester,
+  ) async {
+    final pedidas = <Uri>[];
+    await montar(
+      tester,
+      repositorioConDatos(),
+      EntrenamientoPage(ahora: () => hoy),
+      wger: wgerFalso(fallos: 1, pedidas: pedidas),
+    );
+
+    await tester.tap(find.text('wger'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('No pudimos conectar con wger. Revisa tu conexión.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('reintentar-wger')));
+    await tester.pumpAndSettle();
+    expect(find.text('Sentadilla'), findsOneWidget);
+    expect(find.text('Piernas · Barra'), findsOneWidget);
+    expect(find.text('Jumping Jacks'), findsOneWidget);
+    expect(find.text('EN'), findsOneWidget);
+    expect(find.text('Datos de wger.de (CC-BY-SA 4.0)'), findsOneWidget);
+
+    // Filtrar por categoría no vuelve a llamar a la API.
+    final chips = find
+        .descendant(
+          of: find.byType(WgerPage),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.text('Cardio'),
+      150,
+      scrollable: chips,
+    );
+    await tester.tap(find.text('Cardio'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sentadilla'), findsNothing);
+    expect(find.text('Jumping Jacks'), findsOneWidget);
+    await tester.tap(find.text('Abdominales'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sin ejercicios en esta categoría.'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Todas'),
+      -150,
+      scrollable: chips,
+    );
+    await tester.tap(find.text('Todas'));
+    await tester.pumpAndSettle();
+    expect(pedidas, hasLength(2));
+
+    // El detalle recibe el ejercicio por constructor.
+    await tester.tap(find.text('Sentadilla'));
+    await tester.pumpAndSettle();
+    expect(find.text('Principales: Cuádriceps'), findsOneWidget);
+    expect(find.text('Secundarios: Glúteos'), findsOneWidget);
+    expect(find.text('Cómo se hace'), findsOneWidget);
+    expect(
+      find.text('Con la barra en la espalda:\n• Baja.\n• Sube & respira.'),
+      findsOneWidget,
+    );
   });
 }
